@@ -435,8 +435,18 @@ export function EntitiesPage({
               ? trpc.admin.hospitals.useQuery(undefined, { retry: 1 })
               : trpc.admin.policeStations.useQuery(undefined, { retry: 1 });
 
-  const rows = (queryKey.data as unknown as Array<Record<string, unknown>>) ?? [];
   const isLoading = queryKey.isLoading;
+
+  // admin.ambulances returns { rows, total } with each row shaped { user, ambulance };
+  // other admin entity endpoints return a plain array.
+  const raw = queryKey.data as unknown;
+  const rows: Array<Record<string, unknown>> = Array.isArray(raw)
+    ? (raw as Array<Record<string, unknown>>)
+    : raw && typeof raw === "object" && "rows" in (raw as Record<string, unknown>)
+      ? (((raw as { rows: unknown }).rows ?? []) as Array<Record<string, unknown>>)
+      : [];
+  const flat = rows.map(r => (r.user && r.ambulance ? { ...(r.user as Record<string, unknown>), ...(r.ambulance as Record<string, unknown>) } : r));
+  const isLoadingFinal = isLoading && flat.length === 0;
 
   return (
     <div className="space-y-4">
@@ -449,9 +459,9 @@ export function EntitiesPage({
       </h1>
       <Card className="border-white/10 bg-card">
         <CardContent className="pt-4 overflow-x-auto">
-          {isLoading ? (
+          {isLoadingFinal ? (
             <Skeleton className="h-56 w-full bg-white/5" />
-          ) : rows.length === 0 ? (
+          ) : flat.length === 0 ? (
             <p className="text-xs text-muted-foreground py-8 text-center">No records.</p>
           ) : (
             <Table>
@@ -459,21 +469,25 @@ export function EntitiesPage({
                 <TableRow className="border-white/10 hover:bg-transparent">
                   <TableHead className="text-[10px] text-muted-foreground">ID</TableHead>
                   <TableHead className="text-[10px] text-muted-foreground">NAME / TITLE</TableHead>
+                  <TableHead className="text-[10px] text-muted-foreground">REG / CONTACT</TableHead>
                   <TableHead className="text-[10px] text-muted-foreground">STATUS / EXTRA</TableHead>
                   <TableHead className="text-[10px] text-muted-foreground">UPDATED</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.slice(0, 60).map((r, i) => {
+                {flat.slice(0, 60).map((r, i) => {
                   const id =
                     (r.requestId ?? r.corridorId ?? r.reportId ?? r.id) as string | number;
                   const name =
                     (r.name ??
                       r.stationName ??
                       r.hospitalName ??
+                      r.driverName ??
                       r.registrationNumber ??
                       r.type ??
                       r.title) as string;
+                  const reg =
+                    (r.registrationNumber ?? r.officerId ?? r.emergencyContact ?? r.driverLicenceNumber) as string;
                   const extra =
                     (r.status ??
                       r.verificationStatus ??
@@ -485,6 +499,7 @@ export function EntitiesPage({
                     <TableRow key={`${id}-${i}`} className="border-white/5">
                       <TableCell className="text-xs font-mono font-bold">{String(id)}</TableCell>
                       <TableCell className="text-xs font-semibold">{name ?? "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{reg ?? "—"}</TableCell>
                       <TableCell>
                         <Badge className="bg-white/10 text-slate-200 border-0 text-[10px]">
                           {String(extra ?? "—")}

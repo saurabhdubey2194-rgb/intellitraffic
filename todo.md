@@ -77,3 +77,4 @@
 - [x] Fix: dark theme restored globally (ThemeProvider defaultTheme=dark)
 - [x] Fix: admin role now passes hostProcedure gates (useRole maps admin→host)
 - [x] Fix: map hospital/station counts (5/5) after role gate fix
+- [x] Fix /admin/ambulances crash: "TypeError: rows.slice is not a function" in EntitiesPage — normalized {rows,total} shaped ambulance data and flattened {user,ambulance} joined rows (user bug report Aug 14)
