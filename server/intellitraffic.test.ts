@@ -198,6 +198,6 @@ describe("incident reporting", () => {
       lng: 80.3,
     });
     expect(result.success).toBe(true);
-    expect(result.reportId).toMatch(/^IT-KNP-2026-/);
+    expect(result.reportId).toMatch(/^IT-DLH-2026-/);
   }, 20000);
 });

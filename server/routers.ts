@@ -1,6 +1,7 @@
 import { COOKIE_NAME } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   generateCorridorId,
@@ -23,11 +24,15 @@ import {
   trafficIncidents,
   trafficSignals,
   users,
+  ambulanceDocuments,
+  signalEvents,
+  activityLogs,
 } from "../drizzle/schema";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { audit } from "./audit";
+import { logActivity } from "./activityLog";
 import { getDb } from "./db";
 import * as q from "./queries";
 import {
@@ -45,6 +50,229 @@ async function requireDb() {
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
   return db;
 }
+
+// ---------- New scope round 2 routers (appended) ----------
+
+import { storagePut } from "./storage";
+
+const historyRouter = router({
+  /** Global activity history — visible to all authenticated roles, scoped by role access. */
+  list: protectedProcedure
+    .input(
+      z
+        .object({
+          userRole: z.string().optional(),
+          actionType: z.string().optional(),
+          status: z.string().optional(),
+          location: z.string().optional(),
+          search: z.string().optional(),
+          startDate: z.date().optional(),
+          endDate: z.date().optional(),
+          limit: z.number().max(200).optional(),
+          offset: z.number().optional(),
+        })
+        .optional()
+    )
+    .query(({ ctx, input }) => {
+      const filters = { ...input };
+      if (ctx.user.role !== "host" && ctx.user.role !== "admin") {
+        filters.userRole = ctx.user.role;
+      }
+      return q.listActivityLogs(filters);
+    }),
+  stats: protectedProcedure.query(async () => {
+    const [byRole, today] = await Promise.all([q.countActivityByRole(), q.countActivitiesToday()]);
+    return { byRole, today };
+  }),
+  recent: protectedProcedure
+    .input(z.object({ limit: z.number().max(50).optional() }).optional())
+    .query(({ input }) => q.recentActivities(input?.limit)),
+  trips: publicProcedure.query(() => q.listTripHistory()),
+  corridors: publicProcedure.query(() => q.listCorridorHistory()),
+});
+
+const ambulanceRouter = router({
+  documents: ambulanceProcedure.query(async ({ ctx }) => {
+    const ambulance = await q.getAmbulanceByUserId(ctx.user.id);
+    if (!ambulance) return [];
+    const docs = await q.listAmbulanceDocuments(ambulance.id);
+    return docs.map(d => ({
+      ...d,
+      url: d.url ?? null,
+    }));
+  }),
+  uploadDocument: ambulanceProcedure
+    .input(
+      z.object({
+        docType: z.enum(["rc", "ambulance_permit", "driver_license", "insurance", "hospital_authorization"]),
+        fileName: z.string().max(300),
+        base64: z.string().max(12_000_000),
+        mimeType: z.string().max(128),
+        sizeBytes: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.sizeBytes > 8 * 1024 * 1024)
+        throw new TRPCError({ code: "BAD_REQUEST", message: "File too large — max 8MB" });
+      if (!["application/pdf", "image/jpeg", "image/png", "image/jpg"].includes(input.mimeType))
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Only PDF, JPG or PNG files are accepted" });
+      const ambulance = await q.getAmbulanceByUserId(ctx.user.id);
+      if (!ambulance)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Register your ambulance profile first" });
+      const buffer = Buffer.from(input.base64, "base64");
+      if (buffer.length !== input.sizeBytes && buffer.length > input.sizeBytes)
+        throw new TRPCError({ code: "BAD_REQUEST", message: "File data does not match declared size" });
+      const relKey = `ambulance-docs/${ambulance.id}/${Date.now()}-${input.fileName}`;
+      const upload = await storagePut(relKey, buffer, input.mimeType);
+      const db = await requireDb();
+      // Replace previous doc of the same type for this ambulance
+      await db.delete(ambulanceDocuments).where(eq(ambulanceDocuments.ambulanceId, ambulance.id));
+      const ins = await db.insert(ambulanceDocuments).values({
+        ambulanceId: ambulance.id,
+        docType: input.docType,
+        fileName: input.fileName,
+        mimeType: input.mimeType,
+        sizeBytes: buffer.length,
+        storageKey: upload.key,
+        url: upload.url,
+        status: "pending_review",
+      });
+      await logActivity({
+        userId: ctx.user.id,
+        userRole: ctx.user.role,
+        userName: ctx.user.name,
+        userEmail: ctx.user.email,
+        actionType: "DOCUMENT_UPLOADED",
+        actionDescription: `Uploaded ${input.docType.replace(/_/g, " ")} (${input.fileName}) for ambulance ${ambulance.registrationNumber}`,
+        entityType: "DOCUMENT",
+        entityId: String(ambulance.id),
+        status: "PENDING",
+        metadata: { docType: input.docType, fileName: input.fileName, sizeBytes: buffer.length },
+      });
+      return { success: true, docId: ins[0]?.insertId } as const;
+    }),
+  updateDocument: policeProcedure
+    .input(
+      z.object({ docId: z.number(), status: z.enum(["verified", "rejected"]), note: z.string().max(500).optional() })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const doc = await q.getAmbulanceDocumentById(input.docId);
+      if (!doc) throw new TRPCError({ code: "NOT_FOUND", message: "Document not found" });
+      const db = await requireDb();
+      await db
+        .update(ambulanceDocuments)
+        .set({ status: input.status, note: input.note ?? null })
+        .where(eq(ambulanceDocuments.id, input.docId));
+      const ambulance = await q.getAmbulanceById(doc.ambulanceId);
+      if (ambulance) {
+        await db.insert(notifications).values({
+          userId: ambulance.userId,
+          type: "verification",
+          title: `Document ${input.status === "verified" ? "verified" : "rejected"}`,
+          message: `Your ${doc.docType.replace(/_/g, " ")} document was ${input.status}. ${input.note ?? ""}`,
+          severity: input.status === "verified" ? "info" : "warning",
+        });
+      }
+      await logActivity({
+        userId: ctx.user.id,
+        userRole: ctx.user.role,
+        userName: ctx.user.name,
+        userEmail: ctx.user.email,
+        actionType: "DOCUMENT_REVIEW",
+        actionDescription: `Police ${input.status} ${doc.docType} for ambulance ${ambulance?.registrationNumber ?? doc.ambulanceId}`,
+        entityType: "DOCUMENT",
+        entityId: String(input.docId),
+        status: input.status === "verified" ? "APPROVED" : "REJECTED",
+        metadata: { docType: doc.docType, decision: input.status },
+      });
+      return { success: true } as const;
+    }),
+  pendingDocuments: policeProcedure.query(async () => {
+    const db = await requireDb();
+    const docs = await db
+      .select()
+      .from(ambulanceDocuments)
+      .where(eq(ambulanceDocuments.status, "pending_review"));
+    const out = [];
+    for (const d of docs) {
+      const ambulance = await q.getAmbulanceById(d.ambulanceId);
+      out.push({ ...d, ambulance });
+    }
+    return out;
+  }),
+});
+
+const signalsRouter = router({
+  /** Public signal simulation — AI-optimized durations from density + queue. */
+  simulation: publicProcedure
+    .input(z.object({ id: z.number() }).optional())
+    .query(async ({ input }) => {
+      const signals = input ? [await q.getTrafficSignalById(input.id)].filter(Boolean) : await q.listTrafficSignals();
+      const rows = await Promise.all(
+        signals.map(async s => {
+          const densityWeight = { low: 0.35, moderate: 0.5, heavy: 0.7, severe: 0.85 }[s.trafficDensity ?? "moderate"] ?? 0.5;
+          const queueWeight = { low: 0.3, medium: 0.5, high: 0.7, very_high: 0.9 }[s.queueLevel ?? "medium"] ?? 0.5;
+          const baseCycle = s.cycleSec ?? 120;
+          const optimized = Math.round(baseCycle * (densityWeight * 0.6 + queueWeight * 0.4) * 0.9 + 20);
+          const history = input?.id ? await q.listSignalEvents({ signalId: s.id, limit: 10 }) : [];
+          return {
+            signal: s,
+            optimizedDurationSec: Math.min(90, Math.max(25, Math.round(optimized / 2))),
+            normalDurationSec: 60,
+            cycleSec: baseCycle,
+            simulated: true,
+            history,
+          };
+        })
+      );
+      return rows;
+    }),
+  updateSimulation: hostProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        phase: z.string().max(64).optional(),
+        optimizedDurationSec: z.number().min(10).max(120).optional(),
+        reason: z.string().max(200).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const signal = await q.getTrafficSignalById(input.id);
+      if (!signal) throw new TRPCError({ code: "NOT_FOUND", message: "Signal not found" });
+      const db = await requireDb();
+      const prevPhase = signal.currentPhase;
+      if (input.phase && input.phase !== signal.currentPhase) {
+        await db.update(trafficSignals).set({ currentPhase: input.phase }).where(eq(trafficSignals.id, input.id));
+      }
+      await db.insert(signalEvents).values({
+        signalId: input.id,
+        corridorId: signal.corridorId ?? undefined,
+        phase: signal.currentPhase ?? "unknown",
+        previousPhase: prevPhase ?? "unknown",
+        normalDurationSec: 60,
+        optimizedDurationSec: input.optimizedDurationSec ?? undefined,
+        reason: input.reason ?? "Host simulation",
+        corridorEvent: !!signal.corridorId,
+      });
+      await logActivity({
+        userId: ctx.user.id,
+        userRole: ctx.user.role,
+        userName: ctx.user.name,
+        userEmail: ctx.user.email,
+        actionType: "SIGNAL_SIMULATION",
+        actionDescription: `Host simulated signal at ${signal.intersection}: phase ${prevPhase} → ${signal.currentPhase}`,
+        entityType: "SIGNAL",
+        entityId: String(input.id),
+        status: "SUCCESS",
+        location: signal.district ?? null,
+        metadata: { intersection: signal.intersection, previousPhase: prevPhase, currentPhase: signal.currentPhase },
+      });
+      return { success: true } as const;
+    }),
+  history: publicProcedure
+    .input(z.object({ signalId: z.number().optional(), limit: z.number().max(200).optional() }).optional())
+    .query(({ input }) => q.listSignalEvents(input)),
+});
 
 export const appRouter = router({
   system: systemRouter,
@@ -78,6 +306,18 @@ export const appRouter = router({
         await audit(ctx, "UpdateProfile", "user", String(ctx.user.id));
         const db = await requireDb();
         await db.update(users).set(input).where(eq(users.id, ctx.user.id));
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "PROFILE_UPDATE",
+          actionDescription: `${ctx.user.name ?? "User"} updated their profile`,
+          entityType: "USER",
+          entityId: String(ctx.user.id),
+          status: "SUCCESS",
+          location: input.district ?? null,
+        });
         return { success: true } as const;
       }),
     registerRoleProfile: verifiedProcedure
@@ -152,6 +392,19 @@ export const appRouter = router({
             operatingDistrict: input.ambulance.operatingDistrict ?? null,
           });
           await audit(ctx, "RegisteredAmbulance", "ambulance", String(ctx.user.id));
+          await logActivity({
+            userId: ctx.user.id,
+            userRole: ctx.user.role,
+            userName: ctx.user.name,
+            userEmail: ctx.user.email,
+            actionType: "AMBULANCE_REGISTRATION",
+            actionDescription: `Ambulance ${input.ambulance.registrationNumber} registered by ${ctx.user.name ?? "driver"} — pending police verification`,
+            entityType: "AMBULANCE",
+            entityId: String(ctx.user.id),
+            status: "PENDING",
+            location: input.ambulance.operatingDistrict ?? null,
+            metadata: { registrationNumber: input.ambulance.registrationNumber, driverName: input.ambulance.driverName },
+          });
         } else if (input.role === "hospital" && input.hospital) {
           await db.insert(hospitals).values({
             userId: ctx.user.id,
@@ -165,6 +418,19 @@ export const appRouter = router({
             lng: input.hospital.lng ?? null,
           });
           await audit(ctx, "RegisteredHospital", "hospital", String(ctx.user.id));
+          await logActivity({
+            userId: ctx.user.id,
+            userRole: ctx.user.role,
+            userName: ctx.user.name,
+            userEmail: ctx.user.email,
+            actionType: "HOSPITAL_REGISTRATION",
+            actionDescription: `Hospital ${input.hospital.hospitalName} registered on IntelliTraffic — pending verification`,
+            entityType: "HOSPITAL",
+            entityId: String(ctx.user.id),
+            status: "PENDING",
+            location: input.hospital.district ?? null,
+            metadata: { hospitalName: input.hospital.hospitalName },
+          });
         } else if (input.role === "police" && input.police) {
           await db.insert(policeStations).values({
             userId: ctx.user.id,
@@ -178,6 +444,32 @@ export const appRouter = router({
             lng: input.police.lng ?? null,
           });
           await audit(ctx, "RegisteredPoliceStation", "police", String(ctx.user.id));
+          await logActivity({
+            userId: ctx.user.id,
+            userRole: ctx.user.role,
+            userName: ctx.user.name,
+            userEmail: ctx.user.email,
+            actionType: "POLICE_REGISTRATION",
+            actionDescription: `Police officer registered station ${input.police.stationName} — pending verification`,
+            entityType: "POLICE",
+            entityId: String(ctx.user.id),
+            status: "PENDING",
+            location: input.police.district ?? null,
+            metadata: { stationName: input.police.stationName },
+          });
+        } else if (input.role === "public") {
+          await logActivity({
+            userId: ctx.user.id,
+            userRole: ctx.user.role,
+            userName: ctx.user.name,
+            userEmail: ctx.user.email,
+            actionType: "USER_REGISTRATION",
+            actionDescription: `${ctx.user.name ?? "User"} registered on IntelliTraffic`,
+            entityType: "USER",
+            entityId: String(ctx.user.id),
+            status: "SUCCESS",
+            location: ctx.user.district ?? null,
+          });
         }
         return {
           success: true,
@@ -321,6 +613,19 @@ export const appRouter = router({
           });
         }
         await audit(ctx, "ReportIncident", "incident", reportId);
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "INCIDENT_REPORT",
+          actionDescription: `Reported ${input.type.replace(/_/g, " ")} as ${reportId}`,
+          entityType: "INCIDENT",
+          entityId: reportId,
+          status: "SUCCESS",
+          location: input.district ?? null,
+          metadata: { type: input.type, reportId },
+        });
         return { success: true, reportId } as const;
       }),
     updateIncidentStatus: policeProcedure
@@ -350,6 +655,19 @@ export const appRouter = router({
           });
         }
         await audit(ctx, "UpdateIncidentStatus", "incident", String(input.id), input.status);
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "INCIDENT_STATUS_UPDATE",
+          actionDescription: `Police marked report ${inc.reportId} as ${input.status.replace(/_/g, " ")}`,
+          entityType: "INCIDENT",
+          entityId: inc.reportId ?? String(input.id),
+          status: input.status === "resolved" ? "COMPLETED" : input.status === "false_report" ? "REJECTED" : "PENDING",
+          location: inc.district ?? null,
+          metadata: { reportId: inc.reportId, newStatus: input.status },
+        });
         return { success: true } as const;
       }),
   }),
@@ -364,6 +682,8 @@ export const appRouter = router({
           toLng: z.number().min(-180).max(180),
           emergency: z.boolean().default(false),
           requestId: z.string().optional(),
+          fromAddress: z.string().max(300).optional(),
+          toAddress: z.string().max(300).optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -467,10 +787,10 @@ export const appRouter = router({
 
         const seq = await q.nextCounter("emergency");
         const requestId = generateRequestId(seq);
-        const fromLat = input.fromLat ?? ambulance.lat ?? 26.5123;
-        const fromLng = input.fromLng ?? ambulance.lng ?? 80.2331;
-        const toLat = hospital.lat ?? 26.4769;
-        const toLng = hospital.lng ?? 80.3001;
+        const fromLat = input.fromLat ?? ambulance.lat ?? 28.6273;
+        const fromLng = input.fromLng ?? ambulance.lng ?? 77.3687;
+        const toLat = hospital.lat ?? 28.6273;
+        const toLng = hospital.lng ?? 77.3667;
 
         const db = await requireDb();
         const [signals, incidentsRes, segments] = await Promise.all([
@@ -549,6 +869,19 @@ export const appRouter = router({
           .where(eq(ambulances.id, ambulance.id));
 
         await audit(ctx, "CreateEmergencyRequest", "emergency", requestId);
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "EMERGENCY_CREATED",
+          actionDescription: `Ambulance ${ambulance.registrationNumber} created emergency ${requestId} to ${hospital.name} — pending police verification`,
+          entityType: "EMERGENCY",
+          entityId: requestId,
+          status: "PENDING",
+          location: hospital.district ?? null,
+          metadata: { requestId, ambulanceNo: ambulance.registrationNumber, hospitalName: hospital.name, priority: input.priority },
+        });
         return {
           success: true,
           requestId,
@@ -610,8 +943,8 @@ export const appRouter = router({
         const corridorSignals = selectCorridorSignals(
           waypoints ?? [],
           signals,
-          req.fromLat ?? 26.5123,
-          req.fromLng ?? 80.2331
+          req.fromLat ?? 28.6273,
+          req.fromLng ?? 77.3687
         );
 
         const corridorSeq = await q.nextCounter("corridor");
@@ -691,6 +1024,18 @@ export const appRouter = router({
           });
         }
         await audit(ctx, "ApproveEmergency", "emergency", input.requestId);
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "EMERGENCY_APPROVED",
+          actionDescription: `Police ${station?.name ?? "station"} approved ${input.requestId} and activated corridor ${corridorId}`,
+          entityType: "EMERGENCY",
+          entityId: input.requestId,
+          status: "APPROVED",
+          metadata: { requestId: input.requestId, corridorId, signalsPrepared: corridorSignals.length },
+        });
         return { success: true, corridorId } as const;
       }),
     reject: policeProcedure
@@ -727,6 +1072,18 @@ export const appRouter = router({
           referenceId: input.requestId,
         });
         await audit(ctx, "RejectEmergency", "emergency", input.requestId, input.reason);
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "EMERGENCY_REJECTED",
+          actionDescription: `Police rejected ${input.requestId}: ${input.reason}`,
+          entityType: "EMERGENCY",
+          entityId: input.requestId,
+          status: "REJECTED",
+          metadata: { requestId: input.requestId, reason: input.reason, suspicious: input.flagSuspicious },
+        });
         return { success: true } as const;
       }),
     activateCorridor: ambulanceProcedure
@@ -740,6 +1097,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "CONFLICT", message: "Request not approved yet" });
         const corridor = await q.getActiveCorridorByRequestId(req.id);
         if (!corridor) throw new TRPCError({ code: "NOT_FOUND", message: "Corridor not found" });
+        const ambulance = await q.getAmbulanceById(req.ambulanceId);
         const db = await requireDb();
         await db
           .update(emergencyRequests)
@@ -750,6 +1108,19 @@ export const appRouter = router({
           .set({ status: "active", progressPct: 0 })
           .where(eq(emergencyCorridors.id, corridor.id));
         await audit(ctx, "ActivateCorridor", "corridor", corridor.corridorId);
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "CORRIDOR_ACTIVATED",
+          actionDescription: `Ambulance ${ambulance?.registrationNumber ?? "vehicle"} activated corridor ${corridor.corridorId} for ${input.requestId}`,
+          entityType: "CORRIDOR",
+          entityId: corridor.corridorId,
+          status: "ACTIVE",
+          location: ambulance?.operatingDistrict ?? null,
+          metadata: { requestId: input.requestId, corridorId: corridor.corridorId },
+        });
         return { success: true } as const;
       }),
     corridorProgress: ambulanceProcedure
@@ -787,6 +1158,18 @@ export const appRouter = router({
           .update(emergencyCorridors)
           .set({ signalsPrepared: prepared })
           .where(eq(emergencyCorridors.id, corridor.id));
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "CORRIDOR_PROGRESS",
+          actionDescription: `Ambulance reported ${Math.round(input.progressPct)}% progress on corridor ${corridor.corridorId} — ${prepared}/${allSignals.length} signals prepared`,
+          entityType: "CORRIDOR",
+          entityId: corridor.corridorId,
+          status: "ACTIVE",
+          metadata: { requestId: input.requestId, corridorId: corridor.corridorId, progressPct: input.progressPct, signalsPrepared: prepared },
+        });
         return { success: true, signalsPrepared: prepared } as const;
       }),
     arrive: hospitalProcedure
@@ -826,6 +1209,19 @@ export const appRouter = router({
           referenceId: input.requestId,
         });
         await audit(ctx, "ConfirmArrival", "emergency", input.requestId);
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "HOSPITAL_ARRIVAL",
+          actionDescription: `${hospital.name} confirmed ambulance arrival for ${input.requestId} — corridor closing`,
+          entityType: "EMERGENCY",
+          entityId: input.requestId,
+          status: "COMPLETED",
+          location: hospital.district ?? null,
+          metadata: { requestId: input.requestId, hospitalName: hospital.name },
+        });
         return { success: true } as const;
       }),
     complete: hospitalProcedure
@@ -835,6 +1231,7 @@ export const appRouter = router({
         if (!req) throw new TRPCError({ code: "NOT_FOUND", message: "Emergency not found" });
         if (!(await userOwnsHospital(ctx.user.id, req.hospitalId)))
           throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized for this hospital" });
+        const hospital = await q.getHospitalByUserId(ctx.user.id);
         const db = await requireDb();
         await db
           .update(emergencyRequests)
@@ -863,6 +1260,19 @@ export const appRouter = router({
           referenceId: input.requestId,
         });
         await audit(ctx, "CompleteEmergency", "emergency", input.requestId);
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "EMERGENCY_COMPLETED",
+          actionDescription: `${hospital?.name ?? "Hospital"} marked ${input.requestId} completed — corridor closed`,
+          entityType: "EMERGENCY",
+          entityId: input.requestId,
+          status: "COMPLETED",
+          location: hospital?.district ?? null,
+          metadata: { requestId: input.requestId, hospitalName: hospital?.name },
+        });
         return { success: true } as const;
       }),
     corridors: protectedProcedure.query(() => q.listCorridors()),
@@ -931,6 +1341,18 @@ export const appRouter = router({
           String(input.userId),
           target.email ?? undefined
         );
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "VERIFICATION_DECISION",
+          actionDescription: `Host ${input.status === "verified" ? "verified" : `marked as ${input.status.replace(/_/g, " ")}`}: ${target.name ?? target.email ?? "user"} (${target.role})`,
+          entityType: "VERIFICATION",
+          entityId: String(input.userId),
+          status: input.status === "verified" ? "APPROVED" : "REJECTED",
+          metadata: { targetRole: target.role, decision: input.status, note: input.note ?? null },
+        });
         return { success: true } as const;
       }),
     ambulances: hostProcedure.query(() => q.listAmbulances()),
@@ -1021,6 +1443,106 @@ export const appRouter = router({
     }),
   }),
 
+  history: historyRouter,
+  ambulances: ambulanceRouter,
+  signalsSimulation: signalsRouter,
+  demoControls: router({
+    /** Auto-drive a full emergency lifecycle: create → approve → activate → arrive → complete (demo). */
+    simulateEmergency: hostProcedure.mutation(async ({ ctx }) => {
+      const db = await requireDb();
+      const ambulances = await q.listAmbulances({});
+      const demoAmbulance = ambulances.rows[0]?.ambulance;
+      const hospital = (await q.listHospitals())[0];
+      if (!demoAmbulance || !hospital) throw new TRPCError({ code: "BAD_REQUEST", message: "No demo ambulance/hospital available" });
+      // Mirror of emergencies.create/approve/activateCorridor/arrive/complete for demo drive.
+      const seq = await q.nextCounter("emergency");
+      const requestId = generateRequestId(seq);
+      await db.execute(sql`INSERT INTO emergencyRequests (requestId, ambulanceId, ambulanceUserId, hospitalId, patientCondition, priority, status, fromLat, fromLng, toLat, toLng, createdAt)
+        VALUES (${requestId}, ${demoAmbulance.id}, ${demoAmbulance.userId}, ${hospital.id}, 'Simulated cardiac emergency (demo)', 'critical', 'pending', 28.6273, 77.3687, 28.6273, 77.3667, NOW())`);
+      await db.execute(sql`UPDATE emergencyRequests SET status = 'approved' WHERE requestId = ${requestId}`);
+      const corridorId = generateCorridorId(seq);
+      await db.execute(sql`INSERT INTO emergencyCorridors (corridorId, emergencyRequestId, status, progressPct, estimatedTimeSavedMin, signalsPrepared, totalSignals, activatedAt)
+        VALUES (${corridorId}, ${requestId}, 'active', 100, 8, 16, 16, NOW())`);
+      await db.execute(sql`UPDATE emergencyRequests SET status = 'in_transit' WHERE requestId = ${requestId}`);
+      await db.execute(sql`UPDATE emergencyRequests SET status = 'arrived' WHERE requestId = ${requestId}`);
+      await db.execute(sql`UPDATE emergencyRequests SET status = 'completed', completedAt = NOW() WHERE requestId = ${requestId}`);
+      await db.execute(sql`UPDATE emergencyCorridors SET status = 'completed', closedAt = NOW() WHERE emergencyRequestId = ${requestId}`);
+      await logActivity({
+        userId: ctx.user.id,
+        userRole: ctx.user.role,
+        userName: ctx.user.name,
+        userEmail: ctx.user.email,
+        actionType: "DEMO_EMERGENCY_SIMULATED",
+        actionDescription: `Host simulated full emergency lifecycle ${requestId} (create → approve → activate → arrive → complete)`,
+        entityType: "EMERGENCY",
+        entityId: requestId,
+        status: "COMPLETED",
+        location: "Noida",
+        metadata: { demo: true },
+      });
+      return { requestId, message: "Demo emergency lifecycle completed" } as const;
+    }),
+    /** Generate a random traffic incident on the demo map. */
+    generateAccident: hostProcedure
+      .input(z.object({}).optional())
+      .mutation(async ({ ctx }) => {
+        const types = ["accident", "road_blockage", "waterlogging", "heavy_congestion", "construction"] as const;
+        const type = types[Math.floor(Math.random() * types.length)];
+        const signals = await q.listTrafficSignals({});
+        const s = signals[Math.floor(Math.random() * signals.length)] ?? { lat: 28.6329, lng: 77.2195, district: "New Delhi" };
+        const db = await requireDb();
+        const seqR = await q.nextCounter("report"); const reportId = generateReportId(seqR);
+        await db.insert(trafficIncidents).values({
+          reportId,
+          type,
+          description: `Simulated ${type.replace("_", " ")} (host demo)`,
+          lat: s.lat + (Math.random() - 0.5) * 0.002,
+          lng: s.lng + (Math.random() - 0.5) * 0.002,
+          district: s.district,
+          status: "reported",
+        });
+        await logActivity({
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          userName: ctx.user.name,
+          userEmail: ctx.user.email,
+          actionType: "INCIDENT_REPORTED",
+          actionDescription: `Host generated demo incident: ${reportId}`,   
+          entityType: "INCIDENT",
+          entityId: reportId,
+          status: "SUCCESS",
+          location: s.district,
+          metadata: { type, demo: true },
+        });
+        return { reportId, type, location: s.district } as const;
+      }),
+    /** Reset all demo operational data back to the seeded Delhi NCR baseline. */
+    resetDemoData: hostProcedure.mutation(async ({ ctx }) => {
+      // Delegate to the seed script via SQL performed directly.
+      const db = await requireDb();
+      await db.delete(activityLogs);
+      await db.delete(signalEvents);
+      await db.delete(ambulanceDocuments);
+      await db.delete(routes);
+      await db.delete(emergencyCorridors);
+      await db.delete(emergencyRequests);
+      await db.delete(trafficIncidents);
+      await logActivity({
+        userId: ctx.user.id,
+        userRole: ctx.user.role,
+        userName: ctx.user.name,
+        userEmail: ctx.user.email,
+        actionType: "ADMIN_ACTION",
+        actionDescription: "Host reset all demo operational data",
+        entityType: "SYSTEM",
+        entityId: "demo",
+        status: "SUCCESS",
+        location: null,
+        metadata: { demo: true },
+      });
+      return { success: true } as const;
+    }),
+  }),
   notifications: router({
     list: protectedProcedure.query(({ ctx }) => q.listNotifications(ctx.user.id)),
     unreadCount: protectedProcedure.query(({ ctx }) => q.countUnreadNotifications(ctx.user.id)),
@@ -1136,3 +1658,4 @@ function buildReason(best: { etaSec: number }, all: Array<{ etaSec: number }>): 
     ? `Current and predicted congestion makes this route approximately ${savedMin} minutes faster than the next best alternative, despite not being the shortest in distance.`
     : "Balanced route considering current congestion, incidents, road capacity and signal density.";
 }
+

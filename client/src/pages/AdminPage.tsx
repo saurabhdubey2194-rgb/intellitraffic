@@ -284,7 +284,23 @@ export function UsersPage() {
   );
 }
 
+const PHASES = ["green", "yellow", "red"] as const;
+
+const PHASE_STYLES: Record<string, string> = {
+  green: "bg-emerald-500/15 text-emerald-300 border-emerald-400/40",
+  yellow: "bg-amber-500/15 text-amber-300 border-amber-400/40",
+  red: "bg-rose-500/15 text-rose-300 border-rose-400/40",
+};
+
+function recommendedDuration(density: string | null): number {
+  if (density === "heavy") return 90;
+  if (density === "moderate") return 75;
+  if (density === "low") return 45;
+  return 60;
+}
+
 export function SignalsAdminPage() {
+  const utils = trpc.useUtils();
   const signals = trpc.admin.signals.useQuery(undefined, { retry: 1 });
   const rows = (signals.data as unknown as Array<{
     id: number;
@@ -297,39 +313,98 @@ export function SignalsAdminPage() {
     currentPhase: string | null;
   }>) ?? [];
 
+  const [phaseBySignal, setPhaseBySignal] = useState<Record<number, string>>({});
+
+  type SignalRow = NonNullable<typeof signals.data>[number];
+
+  const simulate = trpc.signalsSimulation.updateSimulation.useMutation({
+    onMutate: async (input: { id: number; phase?: string }) => {
+      await utils.admin.signals.cancel();
+      const prev = utils.admin.signals.getData();
+      utils.admin.signals.setData(undefined, old =>
+        old?.map(s => (s.id === input.id ? { ...s, currentPhase: input.phase ?? s.currentPhase } : s)),
+      );
+      return { prev };
+    },
+    onError: () => {},
+    onSettled: () => utils.admin.signals.invalidate(),
+  });
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-black tracking-tight">Traffic Signals</h1>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight">Traffic Signals</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Simulate signal phases and AI-recommended cycle durations for Delhi NCR
+            junctions. Changes are recorded in the signal event log.
+          </p>
+        </div>
+        <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+          Simulated control
+        </span>
+      </div>
       <Card className="border-white/10 bg-card">
         <CardContent className="pt-4 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-white/10 hover:bg-transparent">
                 <TableHead className="text-[10px] text-muted-foreground">SIGNAL</TableHead>
-                <TableHead className="text-[10px] text-muted-foreground">DISTRICT</TableHead>
-                <TableHead className="text-[10px] text-muted-foreground">AVG SPEED</TableHead>
+                <TableHead className="text-[10px] text-muted-foreground">JUNCTION</TableHead>
                 <TableHead className="text-[10px] text-muted-foreground">CONGESTION</TableHead>
-                <TableHead className="text-[10px] text-muted-foreground">COORDINATES</TableHead>
+                <TableHead className="text-[10px] text-muted-foreground">PHASE</TableHead>
+                <TableHead className="text-[10px] text-muted-foreground">AI CYCLE</TableHead>
+                <TableHead className="text-[10px] text-muted-foreground">SIMULATE</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(rows ?? []).map(s => (
-                <TableRow key={s.id} className="border-white/5">
-                  <TableCell className="text-xs font-bold">{s.signalCode}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{s.intersection}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{s.district ?? "—"}</TableCell>
-                  <TableCell>
-                    {s.trafficDensity ? (
-                      <Badge className="border-0 text-white bg-amber-500/85">{s.trafficDensity}</Badge>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs font-mono text-muted-foreground">
-                    {s.lat?.toFixed(3)}, {s.lng?.toFixed(3)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {(rows ?? []).map(s => {
+                const phase = phaseBySignal[s.id] ?? (s.currentPhase ?? "green");
+                const rec = recommendedDuration(s.trafficDensity);
+                return (
+                  <TableRow key={s.id} className="border-white/5">
+                    <TableCell className="text-xs font-bold">{s.signalCode}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{s.intersection}</TableCell>
+                    <TableCell>
+                      {s.trafficDensity ? (
+                        <Badge className="border-0 text-white bg-amber-500/85">{s.trafficDensity}</Badge>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${PHASE_STYLES[phase] ?? PHASE_STYLES.green}`}
+                      >
+                        {phase}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs font-semibold text-cyan-300">{rec}s</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        {PHASES.filter(p => p !== phase).map(p => (
+                          <button
+                            key={p}
+                            disabled={simulate.isPending}
+                            onClick={() => {
+                              setPhaseBySignal(prev => ({ ...prev, [s.id]: p }));
+                              simulate.mutate({
+                                id: s.id,
+                                phase: p,
+                                optimizedDurationSec: rec,
+                                reason: "Host simulation via Activity Center",
+                              });
+                            }}
+                            className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase transition-colors disabled:opacity-50 ${PHASE_STYLES[p]}`}
+                          >
+                            → {p}
+                          </button>
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -657,7 +732,7 @@ export function DataCenterPage() {
 
   const tables = [
     { key: "users", label: "Users", desc: "All registered users with roles" },
-    { key: "signals", label: "Traffic Signals", desc: "12 Kanpur signal nodes" },
+    { key: "signals", label: "Traffic Signals", desc: "16 Delhi NCR signal nodes" },
     { key: "hospitals", label: "Hospitals", desc: "Registered ER facilities" },
     { key: "incidents", label: "Incidents", desc: "Reported traffic incidents" },
     { key: "emergencies", label: "Emergencies", desc: "Ambulance requests + corridors" },

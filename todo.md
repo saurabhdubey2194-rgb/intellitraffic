@@ -54,3 +54,26 @@
 - [x] Audit logs for host/admin actions
 - [x] Vitest tests for RBAC and key flows
 - [x] Landing page with USP hero, features, CTAs
+
+## Scope round 2 — Delhi NCR rebrand + History & Activity System (user request Aug 14)
+
+- [x] Add activity_logs, ambulance_documents, signal_events tables + migration
+- [x] Create logActivity() utility and instrument all routers (auth, routes, incidents, ambulances, verifications, corridors, arrivals, signals, admin actions)
+- [x] History endpoints: role-scoped mine, admin global w/ filters/search/stats/chart data/export
+- [x] Rebrand Kanpur → Delhi NCR: shared constants (DLH), Home/RouteSearch landmarks, MapPage, Admin DataCenter, RoleRegistration, AlertsPage, DashboardPublic, RequestsPage coords
+- [x] Landing page upgrade: new hero tagline/buttons, Problem/Solution/How/FAQ sections, Delhi NCR focus
+- [x] Ambulance multi-step registration with document upload (ambulance_documents, S3 storage, preview)
+- [x] Police ambulance verification queue w/ VIEW DOCUMENTS + approve/reject confirm dialog
+- [x] Police green corridor page w/ ACTIVATE + signal phase animation (NORMAL→PRE-CLEARING→GREEN→AMBULANCE PASSING→NORMAL)
+- [x] Signals simulation page (/signals) w/ cycle/phase/recommended duration widget
+- [x] Live traffic page w/ auto-refresh + "LIVE PROTOTYPE DATA" label
+- [x] History pages: global + user/ambulance/police/hospital + emergency-history + green-corridor-history + signals/history
+- [x] Admin activity center: filters (role/activity/status/location/date), search, timeline, detail drawer, charts, CSV/JSON export
+- [x] Admin dashboard live activity feed + demo controls (Reset Demo Data, Generate Traffic/Ambulance/Accident, Simulate Emergency/Signal, DEMO MODE)
+- [x] Seed Delhi NCR demo data incl. 100+ activity records, trips, corridors, signal events
+- [x] Notification ↔ history integration, impact dashboard "Estimated / Simulation Metrics"
+- [x] Update vitest suite for new activity log logic, run all tests
+- [x] Visual verification + final checkpoint (dark theme, admin RBAC, map 5/5 counts, signals admin simulation widget, 17/17 tests, removed temp seed script)
+- [x] Fix: dark theme restored globally (ThemeProvider defaultTheme=dark)
+- [x] Fix: admin role now passes hostProcedure gates (useRole maps admin→host)
+- [x] Fix: map hospital/station counts (5/5) after role gate fix

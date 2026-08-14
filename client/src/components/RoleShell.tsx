@@ -95,7 +95,7 @@ function MobileBottomNav({
   const items = ROLE_NAV[role] || ROLE_NAV.public;
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t border-white/10 bg-[#0c1a33]/95 backdrop-blur supports-[backdrop-filter]:backdrop-blur">
-      <div className="grid grid-cols-5 h-16">
+      <div className={`grid h-16 ${items.length > 5 ? "grid-cols-6" : "grid-cols-5"}`}>
         {items.map(item => {
           const isActive = location === item.path;
           return (

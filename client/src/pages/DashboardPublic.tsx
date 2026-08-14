@@ -64,7 +64,7 @@ export default function DashboardPublic() {
                 : "Good day, traveller"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Live simulated traffic around Kanpur city centre ·{" "}
+              Live simulated traffic around Delhi NCR city centre ·{" "}
               {new Date().toLocaleDateString("en-IN", {
                 weekday: "long",
                 day: "numeric",
@@ -323,7 +323,7 @@ export default function DashboardPublic() {
                         {incidentTypeLabel(inc.type)}
                       </p>
                       <p className="text-[10px] text-muted-foreground truncate">
-                        {inc.reportId} · {inc.district ?? "Kanpur Nagar"} ·{" "}
+                        {inc.reportId} · {inc.district ?? "New Delhi"} ·{" "}
                         {new Date(inc.createdAt).toLocaleTimeString("en-IN", {
                           hour: "2-digit",
                           minute: "2-digit",

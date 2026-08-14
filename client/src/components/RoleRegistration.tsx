@@ -125,7 +125,7 @@ function RoleForm({
   const [form, setForm] = useState({
     phone: "",
     city: "",
-    district: "Kanpur Nagar",
+    district: "New Delhi",
     state: "Uttar Pradesh",
     // ambulance
     driverName: "",
@@ -135,7 +135,7 @@ function RoleForm({
     insuranceNumber: "",
     hospitalAssociation: "",
     hospitalId: "",
-    operatingDistrict: "Kanpur Nagar",
+    operatingDistrict: "Noida",
     // police
     stationName: "",
     officerId: "",
@@ -184,7 +184,7 @@ function RoleForm({
           <div className="space-y-1.5">
             <Label className="text-xs">City</Label>
             <Input
-              placeholder="Kanpur"
+              placeholder="Delhi"
               value={form.city}
               onChange={set("city")}
             />
@@ -244,12 +244,12 @@ function RoleForm({
           <>
             <div className="space-y-1.5">
               <Label className="text-xs">Police Station Name</Label>
-              <Input placeholder="e.g. Civil Lines PS, Kanpur" value={form.stationName} onChange={set("stationName")} />
+              <Input placeholder="e.g. Connaught Place PS, New Delhi" value={form.stationName} onChange={set("stationName")} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Officer ID</Label>
-                <Input placeholder="UP/KNP/12345" value={form.officerId} onChange={set("officerId")} />
+                <Input placeholder="e.g. DL/NCR/12345" value={form.officerId} onChange={set("officerId")} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Designation</Label>

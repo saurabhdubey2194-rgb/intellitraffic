@@ -64,6 +64,7 @@ export const ROLE_NAV: Record<string, NavItem[]> = {
     { icon: MapIcon, label: "Map", path: "/map" },
     { icon: MapPin, label: "Routes", path: "/routes" },
     { icon: Bell, label: "Alerts", path: "/alerts" },
+    { icon: History, label: "Activity", path: "/history" },
     { icon: User, label: "Profile", path: "/profile" },
   ],
   ambulance: [
@@ -71,6 +72,7 @@ export const ROLE_NAV: Record<string, NavItem[]> = {
     { icon: Siren, label: "Emergency", path: "/emergency" },
     { icon: MapPin, label: "Route", path: "/routes" },
     { icon: Bell, label: "Alerts", path: "/alerts" },
+    { icon: History, label: "Activity", path: "/history-ambulance" },
     { icon: Ambulance, label: "Profile", path: "/profile" },
   ],
   police: [
@@ -78,6 +80,7 @@ export const ROLE_NAV: Record<string, NavItem[]> = {
     { icon: ClipboardList, label: "Requests", path: "/requests" },
     { icon: MapIcon, label: "Map", path: "/map" },
     { icon: Bell, label: "Alerts", path: "/alerts" },
+    { icon: History, label: "Activity", path: "/history-police" },
     { icon: Shield, label: "Profile", path: "/profile" },
   ],
   hospital: [
@@ -85,6 +88,7 @@ export const ROLE_NAV: Record<string, NavItem[]> = {
     { icon: Siren, label: "Emergencies", path: "/emergencies" },
     { icon: Ambulance, label: "Ambulances", path: "/ambulances" },
     { icon: Bell, label: "Alerts", path: "/alerts" },
+    { icon: History, label: "Activity", path: "/history-hospital" },
     { icon: Hospital, label: "Profile", path: "/profile" },
   ],
   host: [
@@ -101,6 +105,7 @@ export const ROLE_NAV: Record<string, NavItem[]> = {
     { icon: AlertTriangle, label: "Incidents", path: "/admin/incidents" },
     { icon: History, label: "Routes", path: "/admin/routes" },
     { icon: Bot, label: "Analytics", path: "/admin/analytics" },
+    { icon: Crown, label: "Activity Center", path: "/history-admin" },
     { icon: Shield, label: "Audit Logs", path: "/admin/audit" },
     { icon: Settings, label: "Settings", path: "/admin/settings" },
     { icon: Database, label: "Data Center", path: "/admin/data" },

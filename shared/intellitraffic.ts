@@ -58,12 +58,26 @@ export const EMERGENCY_STATUS = [
 export const ROLE = INTELLITRAFFIC_ROLES;
 export type TrafficLevel = (typeof TRAFFIC_LEVELS)[number];
 
-/** Kanpur Nagar demo area bounding box. */
-export const KANPUR_CENTER = { lat: 26.4499, lng: 80.3319 } as const;
-export const DEMO_DISTRICT = "Kanpur Nagar";
-export const DEMO_STATE = "Uttar Pradesh";
-export const DEMO_CITY = "Kanpur";
-export const CITY_CODE = "KNP";
+/** Delhi NCR demo area bounding box. */
+export const CITY_CENTER = { lat: 28.6139, lng: 77.209 } as const;
+export const CITY_CENTER_DLH = CITY_CENTER; export const KANPUR_CENTER = CITY_CENTER;
+export const DEMO_DISTRICT = "New Delhi";
+export const DEMO_STATE = "Delhi NCR";
+export const DEMO_CITY = "Delhi NCR";
+export const CITY_CODE = "DLH";
+
+/** Delhi NCR districts for seeding, filtering and display. */
+export const NCR_DISTRICTS = [
+  "New Delhi",
+  "Noida",
+  "Greater Noida",
+  "Ghaziabad",
+  "Gurugram",
+  "Faridabad",
+  "Dwarka",
+  "South Delhi",
+] as const;
+export type NcrDistrict = (typeof NCR_DISTRICTS)[number];
 
 export function generateReportId(sequence: number): string {
   const year = new Date().getUTCFullYear();
@@ -79,6 +93,18 @@ export function generateRequestId(sequence: number): string {
 export function generateCorridorId(sequence: number): string {
   const year = new Date().getUTCFullYear();
   return `EC-${CITY_CODE}-${year}-${String(sequence).padStart(6, "0")}`;
+}
+
+/** Activity id — random suffix keeps it unique without a counter round-trip. */
+export function generateActivityId(): string {
+  const year = new Date().getUTCFullYear();
+  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `ACT-${CITY_CODE}-${year}-${rand}`;
+}
+
+export function generateTripId(): string {
+  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `TRIP-${rand}`;
 }
 
 export function haversineKm(

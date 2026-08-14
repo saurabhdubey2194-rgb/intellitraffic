@@ -63,7 +63,7 @@ export default function AlertsPage() {
   const [desc, setDesc] = useState("");
   const [lat, setLat] = useState(String(KANPUR_CENTER.lat));
   const [lng, setLng] = useState(String(KANPUR_CENTER.lng));
-  const [district, setDistrict] = useState("Kanpur Nagar");
+  const [district, setDistrict] = useState("New Delhi");
   const [pinMode, setPinMode] = useState(false);
 
   const utils = trpc.useUtils();
@@ -207,7 +207,7 @@ export default function AlertsPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">All Incidents</CardTitle>
             <CardDescription className="text-xs">
-              Latest {rows.length} reports across {KANPUR_CENTER.lng > 0 ? "Kanpur" : "the city"}
+              Latest {rows.length} reports across {"Delhi NCR"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -251,7 +251,7 @@ export default function AlertsPage() {
                         </p>
                       )}
                       <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-2">
-                        <MapPin className="h-3 w-3" /> {inc.district ?? "Kanpur Nagar"} ·{" "}
+                        <MapPin className="h-3 w-3" /> {inc.district ?? "New Delhi"} ·{" "}
                         {new Date(inc.createdAt).toLocaleString("en-IN", {
                           day: "2-digit",
                           month: "short",
@@ -336,7 +336,7 @@ export default function AlertsPage() {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              Default coordinates point to Kanpur city centre. In production, your
+              Default coordinates point to Delhi NCR city centre. In production, your
               browser location or a map picker would set these precisely.
             </p>
             <Button

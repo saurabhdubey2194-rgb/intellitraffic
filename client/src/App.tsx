@@ -16,6 +16,7 @@ import MapPage from "./pages/MapPage";
 import RouteSearch from "./pages/RouteSearch";
 import AlertsPage from "./pages/AlertsPage";
 import ProfilePage from "./pages/ProfilePage";
+import HistoryPage from "./pages/HistoryPage";
 
 // Host admin pages
 import {
@@ -175,6 +176,46 @@ function Router() {
           <DataCenterPage />
         </Shared>
       </Route>
+      <Route path={"/history"}>
+        <Shared>
+          <HistoryPage scope="public" />
+        </Shared>
+      </Route>
+      <Route path={"/history-ambulance"}>
+        <Shared>
+          <HistoryPage scope="ambulance" />
+        </Shared>
+      </Route>
+      <Route path={"/history-police"}>
+        <Shared>
+          <HistoryPage scope="police" />
+        </Shared>
+      </Route>
+      <Route path={"/history-hospital"}>
+        <Shared>
+          <HistoryPage scope="hospital" />
+        </Shared>
+      </Route>
+      <Route path={"/history-admin"}>
+        <Shared>
+          <HistoryPage scope="admin" />
+        </Shared>
+      </Route>
+      <Route path={"/emergency-history"}>
+        <Shared>
+          <HistoryPage scope="emergencies" />
+        </Shared>
+      </Route>
+      <Route path={"/corridor-history"}>
+        <Shared>
+          <HistoryPage scope="corridors" />
+        </Shared>
+      </Route>
+      <Route path={"/signal-history"}>
+        <Shared>
+          <HistoryPage scope="signals" />
+        </Shared>
+      </Route>
 
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
@@ -197,7 +238,7 @@ function RoleDashboard() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
+      <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster />
           <Router />

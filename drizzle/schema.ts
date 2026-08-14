@@ -321,3 +321,65 @@ export const systemSettings = mysqlTable("systemSettings", {
   category: varchar("category", { length: 64 }),
   updatedAt: datetime("updatedAt").default(new Date()).notNull(),
 });
+
+// ---------- Activity & history tables ----------
+
+export const activityLogs = mysqlTable("activity_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  activityId: varchar("activityId", { length: 32 }).notNull().unique(),
+  userId: int("userId"),
+  userRole: varchar("userRole", { length: 32 }),
+  userName: varchar("userName", { length: 200 }),
+  userEmail: varchar("userEmail", { length: 320 }),
+  actionType: varchar("actionType", { length: 128 }).notNull(),
+  actionDescription: text("actionDescription").notNull(),
+  entityType: varchar("entityType", { length: 64 }),
+  entityId: varchar("entityId", { length: 64 }),
+  status: varchar("status", { length: 64 }).default("SUCCESS"),
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  deviceType: varchar("deviceType", { length: 64 }),
+  location: varchar("location", { length: 200 }),
+  metadata: text("metadata"),
+  createdAt: datetime("createdAt").default(new Date()).notNull(),
+});
+
+export type ActivityLog = typeof activityLogs.$inferSelect;
+
+export const ambulanceDocuments = mysqlTable("ambulance_documents", {
+  id: int("id").autoincrement().primaryKey(),
+  ambulanceId: int("ambulanceId").notNull(),
+  docType: mysqlEnum("docType", [
+    "rc",
+    "ambulance_permit",
+    "driver_license",
+    "insurance",
+    "hospital_authorization",
+  ]).notNull(),
+  fileName: varchar("fileName", { length: 300 }).notNull(),
+  mimeType: varchar("mimeType", { length: 128 }),
+  sizeBytes: int("sizeBytes"),
+  storageKey: varchar("storageKey", { length: 300 }),
+  url: text("url"),
+  status: mysqlEnum("status", ["pending_review", "verified", "rejected"]).default("pending_review"),
+  note: text("note"),
+  createdAt: datetime("createdAt").default(new Date()).notNull(),
+  updatedAt: datetime("updatedAt").default(new Date()).notNull(),
+});
+
+export type AmbulanceDocument = typeof ambulanceDocuments.$inferSelect;
+
+export const signalEvents = mysqlTable("signal_events", {
+  id: int("id").autoincrement().primaryKey(),
+  signalId: int("signalId").notNull(),
+  corridorId: int("corridorId"),
+  requestId: varchar("requestId", { length: 32 }),
+  phase: varchar("phase", { length: 64 }).notNull(),
+  previousPhase: varchar("previousPhase", { length: 64 }),
+  normalDurationSec: int("normalDurationSec").default(60),
+  optimizedDurationSec: int("optimizedDurationSec"),
+  reason: varchar("reason", { length: 200 }),
+  corridorEvent: boolean("corridorEvent").default(false),
+  createdAt: datetime("createdAt").default(new Date()).notNull(),
+});
+
+export type SignalEvent = typeof signalEvents.$inferSelect;

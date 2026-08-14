@@ -116,7 +116,7 @@ export default function Home() {
           <div className="max-w-3xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300 mb-6">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Simulated city-wide demo — Kanpur Nagar
+              Simulated city-wide demo — Delhi NCR
             </span>
             <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.05]">
               Don't just find traffic.
@@ -220,9 +220,9 @@ export default function Home() {
               Built for Indian smart cities
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              From Kanpur to India-wide: scalable location architecture supporting
+              From Delhi NCR to India-wide: scalable location architecture supporting
               states, districts, cities, areas, roads, and intersections. Report
-              IDs follow the IT-KNP-2026-000124 format. All role names are fixed:
+              IDs follow the IT-DLH-2026-000124 format. All role names are fixed:
               Public, Ambulance, Police, Hospital, Host/Admin.
             </p>
           </div>
@@ -262,7 +262,7 @@ export default function Home() {
             Signal coordination is a simulation; physical signal control requires
             municipal infrastructure integration.
           </span>
-          <span>Demo data · Kanpur Nagar · © 2026</span>
+          <span>Demo data · Delhi NCR · © 2026</span>
         </div>
       </footer>
     </div>

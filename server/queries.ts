@@ -532,3 +532,128 @@ export async function listIncidentsInDateRange(start?: Date, end?: Date) {
     .where(conditions.length ? and(...conditions) : undefined);
   return rows;
 }
+
+// ---------- Activity logs / history ----------
+import {
+  activityLogs,
+  ambulanceDocuments,
+  signalEvents,
+} from "../drizzle/schema";
+
+export async function listActivityLogs(filters?: {
+  userRole?: string;
+  actionType?: string;
+  status?: string;
+  location?: string;
+  search?: string;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await requireDb();
+  const conditions = [];
+  if (filters?.userRole && filters.userRole !== "all")
+    conditions.push(eq(activityLogs.userRole, filters.userRole));
+  if (filters?.actionType && filters.actionType !== "all")
+    conditions.push(eq(activityLogs.actionType, filters.actionType));
+  if (filters?.status && filters.status !== "all")
+    conditions.push(eq(activityLogs.status, filters.status));
+  if (filters?.location) conditions.push(eq(activityLogs.location, filters.location));
+  if (filters?.startDate) conditions.push(gte(activityLogs.createdAt, filters.startDate));
+  if (filters?.endDate) conditions.push(lte(activityLogs.createdAt, filters.endDate));
+  if (filters?.search) {
+    conditions.push(
+      or(
+        like(activityLogs.userName, `%${filters.search}%`),
+        like(activityLogs.userEmail, `%${filters.search}%`),
+        like(activityLogs.activityId, `%${filters.search}%`),
+        like(activityLogs.entityId, `%${filters.search}%`),
+        like(activityLogs.actionDescription, `%${filters.search}%`)
+      )!
+    );
+  }
+  const rows = await db
+    .select()
+    .from(activityLogs)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(desc(activityLogs.createdAt))
+    .limit(filters?.limit ?? 50)
+    .offset(filters?.offset ?? 0);
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(activityLogs)
+    .where(conditions.length ? and(...conditions) : undefined);
+  return { rows, total: Number(count) };
+}
+
+export async function countActivityByRole() {
+  const db = await requireDb();
+  const rows = await db
+    .select({ userRole: activityLogs.userRole, count: sql<number>`count(*)` })
+    .from(activityLogs)
+    .groupBy(activityLogs.userRole);
+  return rows;
+}
+
+export async function countActivitiesToday() {
+  const db = await requireDb();
+  const start = new Date(new Date().setUTCHours(0, 0, 0, 0));
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(activityLogs)
+    .where(gte(activityLogs.createdAt, start));
+  return Number(count);
+}
+
+export async function recentActivities(limit = 5) {
+  const db = await requireDb();
+  return db.select().from(activityLogs).orderBy(desc(activityLogs.createdAt)).limit(limit);
+}
+
+// ---------- Emergency history (trip history) ----------
+export async function listTripHistory() {
+  const db = await requireDb();
+  const rows = await db
+    .select()
+    .from(emergencyRequests)
+    .where(or(eq(emergencyRequests.status, "completed"), eq(emergencyRequests.status, "arrived"), eq(emergencyRequests.status, "in_transit")))
+    .orderBy(desc(emergencyRequests.createdAt))
+    .limit(200);
+  return rows;
+}
+
+export async function listCorridorHistory() {
+  const db = await requireDb();
+  return db.select().from(emergencyCorridors).orderBy(desc(emergencyCorridors.activatedAt)).limit(200);
+}
+
+export async function listSignalEvents(filters?: { signalId?: number; limit?: number }) {
+  const db = await requireDb();
+  const conditions = [];
+  if (filters?.signalId) conditions.push(eq(signalEvents.signalId, filters.signalId));
+  return db
+    .select()
+    .from(signalEvents)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(desc(signalEvents.createdAt))
+    .limit(filters?.limit ?? 100);
+}
+
+// ---------- Ambulance documents ----------
+export async function listAmbulanceDocuments(ambulanceId: number) {
+  const db = await requireDb();
+  return db.select().from(ambulanceDocuments).where(eq(ambulanceDocuments.ambulanceId, ambulanceId));
+}
+
+export async function getAmbulanceDocumentById(id: number) {
+  const db = await requireDb();
+  const res = await db.select().from(ambulanceDocuments).where(eq(ambulanceDocuments.id, id)).limit(1);
+  return res[0];
+}
+
+// ---------- Verified ambulances (for police verification queue) ----------
+export async function listPendingAmbulances() {
+  const db = await requireDb();
+  return db.select().from(ambulances).orderBy(desc(ambulances.createdAt)).limit(200);
+}

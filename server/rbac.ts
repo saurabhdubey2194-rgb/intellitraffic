@@ -19,8 +19,8 @@ function requireRole(...roles: IntelliTrafficRole[]) {
     if (!user) {
       throw new TRPCError({ code: "UNAUTHORIZED", message: "Not signed in" });
     }
-    if (user.role === "host") {
-      // Host bypasses all role gates (full platform authority)
+    if (user.role === "host" || user.role === "admin") {
+      // Host/admin bypasses all role gates (full platform authority)
       return next({ ctx: { ...ctx, user } });
     }
     if (!roles.includes(user.role as IntelliTrafficRole)) {

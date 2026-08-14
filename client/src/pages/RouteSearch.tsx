@@ -48,20 +48,20 @@ type Candidate = {
 };
 
 const LANDMARKS: { name: string; lat: number; lng: number }[] = [
-  { name: "Kanpur Central Station", lat: 26.4696, lng: 80.3402 },
-  { name: "Allen Forest (Phool Bagh)", lat: 26.4677, lng: 80.3556 },
-  { name: "Nana Rao Park", lat: 26.4511, lng: 80.3462 },
-  { name: "Green Park Stadium", lat: 26.4851, lng: 80.3462 },
-  { name: "Jajmau", lat: 26.4964, lng: 80.3886 },
-  { name: "Kalyanpur", lat: 26.4778, lng: 80.2787 },
-  { name: "Swaroop Nagar", lat: 26.4979, lng: 80.3006 },
-  { name: "Kidwai Nagar", lat: 26.4592, lng: 80.3246 },
+  { name: "Sector 62, Noida", lat: 28.6273, lng: 77.3687 },
+  { name: "Connaught Place, New Delhi", lat: 28.6329, lng: 77.2195 },
+  { name: "Indira Gandhi Airport, New Delhi", lat: 28.5562, lng: 77.1 },
+  { name: "Sector 18, Noida", lat: 28.5681, lng: 77.3251 },
+  { name: "Dwarka Sector 21", lat: 28.5517, lng: 77.0485 },
+  { name: "Gurugram Cyber Hub", lat: 28.4947, lng: 77.0884 },
+  { name: "Vaishali, Ghaziabad", lat: 28.6402, lng: 77.3579 },
+  { name: "Nehru Place, New Delhi", lat: 28.5507, lng: 77.2542 },
 ];
 
 export default function RouteSearch() {
   const { user } = useAuth();
-  const [from, setFrom] = useState("Kanpur Central Station");
-  const [to, setTo] = useState("Kalyanpur");
+  const [from, setFrom] = useState("Sector 62, Noida");
+  const [to, setTo] = useState("Connaught Place, New Delhi");
   const [emergency, setEmergency] = useState(false);
 
   const calc = trpc.routes.calculate.useMutation();

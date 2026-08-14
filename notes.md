@@ -139,3 +139,171 @@
 - Visual check via sandbox browser: Home renders fully (hero, lifecycle chips, 4 role cards, IT-KNP-2026-NNNNNN, disclaimer). /map shows RoleShell sign-in gate (expected for anonymous).
 - Known infra: TiDB gateway DNS intermittently EAI_AGAIN from sandbox; webdev_execute_sql reliable. Not a code issue.
 - TODO left: run final test retry until green, checkpoint, deliver.
+
+## NEW SCOPE (Aug 14, 2026) — from user docs pasted_content_3.txt (BUILD REQUEST) + pasted_content_4.txt (HISTORY MODULE)
+
+### Big theme: RE-CENTER FROM KANPUR → DELHI NCR
+Target: Delhi NCR (Delhi, Noida, Greater Noida, Ghaziabad, Gurugram). Hero tagline: "Move Smarter. Respond Faster. Save Lives." Subtitle: "An intelligent traffic and emergency response platform connecting citizens, ambulances, police and hospitals." Landing buttons: [Explore Traffic] [Emergency Services] [Login] [Create Account]. Sections: Problem, Solution, How it works, User/Ambulance/Police/Hospital, Intelligent Signals, Live Traffic, Technology, Impact, FAQ, Contact, Footer. ID codes KNP→DLH: IT-DLH-2026-NNNNNN, ER-DLH-..., EC-DLH-...
+Disclaimers everywhere: DEMO DATA / SIMULATION / PROTOTYPE. "LIVE PROTOTYPE DATA" label on live traffic. "AI Signal Optimization — Simulation". "GREEN CORRIDOR SIMULATION". Never claim real Delhi Police/government integration.
+Demo accounts doc mentions user/ambulance/police/hospital@intellitraffic.demo — platform uses Manus OAuth (no passwords); handle demo via host "DEMO MODE" controls + seed, keep disclaimer. (Could add a demo-mode quick-login UI emulation — avoid inventing password auth; keep OAuth.)
+
+### User dashboard nav: Dashboard, Plan Route, Live Traffic, Explore Map, Traffic Signals, Alerts, Nearby Services, History, Profile, Logout. Cards: Current Traffic, Congested Roads, Active Signals, Nearby Accidents, Estimated Time Saved.
+### Plan Your Journey: freeform FROM/TO (Sector 62 Noida → Connaught Place), per-route distance/ETA/traffic/congestion%/signals/delay, "INTELLITRAFFIC RECOMMENDED" label (existing engine already does this — switch LANDMARKS to Delhi NCR places). Route map overlay on interactive map w/ alternative routes + styled markers.
+### Live traffic /user/traffic: GREEN/YELLOW/ORANGE/RED, density/avg speed/vehicle count/congestion%/delay, auto-refresh ~5s, label "LIVE PROTOTYPE DATA".
+### /maps explore: layers Traffic/Signals/Ambulances/Police/Hospitals/Accidents/Closures/Congestion on/off (MapPage has 9 layers — align labels).
+### Ambulance registration multi-step: 1 details (vehicle no e.g. UP16AB1234, type, model, driver name/phone/license, hospital name+reg id), 2 docs (RC, permit, license, insurance, hospital auth; PDF/JPG/PNG preview+progress), 3 location/GPS, 4 submit → PENDING POLICE VERIFICATION. Needs ambulance_documents table.
+### Police: ambulance verification queue cards w/ VIEW DOCUMENTS + APPROVE (confirm dialog)/REJECT; /police/green-corridor ACTIVATE → animated route, signal phases NORMAL→PRE-CLEARING→GREEN→AMBULANCE PASSING→NORMAL.
+### /signals: signal sim widget — 60s cycle, optimized duration from density/queue/emergency; phases, remaining secs, density, recommended duration.
+### Hospital arrival confirm: ambulance no, emergency ID, arrival time, trip id → COMPLETED (exists).
+### Notifications: toast + center + unread (exists).
+### Admin demo control: Reset Demo Data, Generate Traffic/Ambulance/Accident, Simulate Emergency, Simulate Signal Change, DEMO MODE button.
+### Analytics + Impact dashboard w/ "Estimated / Simulation Metrics" labels.
+### Hospital history, trip history, profile (exists partially).
+
+## HISTORY MODULE (pasted_content_4.txt)
+- NEW TABLE activity_logs: id, user_id, user_role, user_name, user_email, action_type, action_description, entity_type, entity_id, status, timestamp, ip_address, device_type, location, metadata(JSON text). ids ACT-2026-NNNNNN.
+- Pages: /history (global), /user/history, /ambulance/history, /police/history, /hospital/history, /admin/history, /emergency-history (trip table: trip id/ambulance/station/hospital/start/arrival/duration/distance/corridor/status), /green-corridor-history, /signals/history.
+- Dashboard cards: Total Activities, Today's Activities, Active Users, Active Ambulances, Pending Verifications, Completed Emergencies, Police Actions, Hospital Verifications.
+- Timeline grouped by date, role badges, status colors (SUCCESS green, PENDING amber, ACTIVE blue, REJECTED/FAILED red, COMPLETED green) + text labels.
+- Admin filters: role, activity type, status, location (Delhi/Noida/Greater Noida/Ghaziabad/Gurugram), date range (today/yesterday/7d/30d/custom). Global search: name/email/phone/ambulance no/hospital/station/request id/trip id/activity id.
+- Activity detail drawer w/ related-entity links (View Related Ambulance/Police Action/Trip).
+- Live activity feed on admin dashboard from real records ("Today, IntelliTraffic processed: N User Activities ...").
+- Usage charts: daily usage, role activity mix, emergency requests, verifications, corridors, route searches, logins, completed trips; daily/weekly/monthly/yearly.
+- Export CSV/JSON honoring filters (PDF optional — CSV+JSON suffice).
+- Notification ↔ history integration; audit log upgrade (actor/action/target/prev/new status/reason).
+- Persistence DB only. Privacy scoping per role.
+- Demo seed: 50+ users, 10 ambulances, 5 hospitals, 5 stations, 100+ activities, 20 verifications, 10 trips, 10 route searches, 20 traffic events, 10 signal sims — DEMO labeled.
+- Signal history: intersection/normal 60s/optimized/reason/emergency/timestamp.
+
+## Execution plan
+1. DB: add activity_logs, ambulance_documents, signal_events (+ maybe user_location); migrate via webdev_execute_sql.
+2. server/activityLog.ts utility logActivity(ctx,...) + instrument routers (register, profile, route calc, incident report, ambulance reg, approve/reject, corridor activate, arrive/complete, signal sim, admin actions).
+3. History endpoints in routers: history.* (mine(role-scoped), global admin w/ filters/search/stats/chartData/exports), emergencies tripsHistory/corridorHistory, signals.history; queries.ts helpers.
+4. Seed Delhi NCR demo data: signals(roads: DND Flyway, Ring Rd, NH48, Noida Link Rd, Yamuna Rd...), hospitals (Apollo Delhi, Max Vaishali, Fortis Noida...), stations (Connaught Place PS, Sector 58 PS, Ghaziabad PS...), ambulances UP/DL numbers, ~120 activity rows + trips/corridors/signals-events. KNP→DLH rebrand in shared + Home/RouteSearch LANDMARKS/MapPage/Admin DataCenter/RoleRegistration/AlertsPage/DashboardPublic/RequestsPage hardcoded coords.
+5. Landing upgrade (hero/buttons/sections/FAQ), History pages per role + admin activity center (filters/search/timeline/table/charts/export), nav entries, admin demo controls (reset/seed endpoints).
+6. Tests, screenshots, checkpoint, deliver.
+
+## Scope round 2 — EXECUTION PROGRESS (Aug 14)
+
+### DONE so far (round 2)
+1. DB tables created via webdev_execute_sql: activity_logs, ambulance_documents, signal_events (+ CURRENT_TIMESTAMP defaults). Drizzle schema.ts appended (activityLogs/ambulanceDocuments/signalEvents exported + types). Migration generated drizzle/0003_colorful_skreet.sql (leave; applied via SQL).
+2. shared/intellitraffic.ts: CITY_CENTER {28.6139,77.209}, KANPUR_CENTER=CITY_CENTER alias, DEMO_DISTRICT "New Delhi", DEMO_STATE "Delhi NCR", DEMO_CITY "Delhi NCR", CITY_CODE "DLH", NCR_DISTRICTS array. Added generateActivityId() (ACT-DLH-2026-xxxxxx) + generateTripId() (TRIP-xxxxxx).
+3. Mass rebrand sed: RoleRegistration (defaults New Delhi/Noida, placeholders Connaught Place PS/DL-NCR-12345), Home.tsx (hero pill Delhi NCR, IT-DLH-2026-000124, footer Demo data · Delhi NCR), DashboardPublic, AlertsPage, AdminPage (16 Delhi NCR signal nodes), server/intellitraffic.test.ts (IT-DLH).
+4. RouteSearch.tsx LANDMARKS → Delhi NCR (Sector 62 Noida, Connaught Place, IGI Airport, Sector 18, Dwarka S21, Gurugram Cyber Hub, Vaishali, Nehru Place); defaults Sector 62 → Connaught Place.
+5. server/activityLog.ts CREATED — logActivity({userId,userRole,userName,userEmail,actionType,actionDescription,entityType,entityId,status,location,metadata}) → activity_logs table; never throws.
+6. routers.ts: imported logActivity; instrumented auth.updateProfile (PROFILE_UPDATE), auth.registerRoleProfile (USER_REGISTRATION for public, AMBULANCE_REGISTRATION pending, HOSPITAL_REGISTRATION pending, POLICE_REGISTRATION pending); routes.calculate input extended with fromAddress/toAddress (optional, 300 max) — NOT yet used in logic.
+
+### Instrumentation POINTS STILL NEEDED in routers.ts (after line 820: activateCorridor, corridorProgress, arrive, complete; traffic.reportIncident; admin.verifyUser; admin.reset/seed/demos; routes.saveRoute/deleteSaved; notifications)
+- emergencies.activateCorridor → activity CORRIDOR_ACTIVATED status ACTIVE
+- emergencies.corridorProgress → CORRIDOR_PROGRESS
+- emergencies.arrive → HOSPITAL_ARRIVAL
+- emergencies.complete → EMERGENCY_COMPLETED status COMPLETED
+- emergencies.create → EMERGENCY_TRIP_CREATED status PENDING
+- emergencies.approve → already does audit; add EMERGENCY_APPROVED w/ police station name, notify ambulance
+- emergencies.reject → EMERGENCY_REJECTED status REJECTED
+- traffic.reportIncident → INCIDENT_REPORTED
+- traffic.updateIncidentStatus → INCIDENT_STATUS_UPDATE
+- admin.verifyUser (role verification approve/reject) → VERIFICATION_APPROVED/REJECTED
+- routes.saveRoute → ROUTE_SAVED
+- notifications create for approvals etc. (already exist)
+- NEW endpoints needed: ambulances.uploadDocument / ambulances.documents / ambulances.updateDocs (ambulance_documents, S3 storagePut, type/size validation PDF|JPG|PNG max 8MB), police ambulance-document approval; history.* router (mine global w/ filters/search/pagination, role-scoped for user/ambulance/police/hospital, admin stats/cards/chartData, exports CSV/JSON); emergencies.tripsHistory, corridors.history, signals.history (signal_events), traffic.liveStats (simulated w/ variation), admin.resetDemoData, admin.seedDemoEmergency, admin.simulateTraffic/signal, admin.updateSignalSimulation (phase + signal_events row + trafficSignals.currentPhase/optimized duration calc).
+
+### History UI plan (client/src/pages/HistoryPage.tsx one page, multiple roles)
+- /history (public user history), /history-ambulance, /history-police, /history-hospital, /history-admin (activity center w/ filters/search/charts/export)
+- Also /emergency-history, /green-corridor-history, /signals-history
+- Nav entries: ROLE_NAV + history (RoleShell bottom nav too)
+- Status colors: SUCCESS green, PENDING amber, ACTIVE blue, REJECTED/FAILED red, COMPLETED green, w/ text labels.
+- Admin activity center: cards (Total/Today/ActiveUsers/ActiveAmbulances/PendingVerifications/CompletedEmergencies/PoliceActions/HospitalVerifications), timeline grouped by date, table, filters (role/activity/status/location/date), search box, export CSV/JSON buttons, usage charts (recharts already in template — check), live feed.
+- Admin dashboard: add "Today, IntelliTraffic processed:" system activity section from real records.
+- Demo controls on admin: Reset Demo Data, Generate Traffic, Generate Accident, Simulate Emergency (auto-drive create→approve→activate→arrive→complete), Simulate Signal Change; DEMO MODE banner toggle.
+
+### Seed data needed (webdev_execute_sql)
+- roadSegments: 7 DLH roads (DND Flyway, Inner Ring Rd, NH48 Delhi-Gurugram, Noida-Greater Noida Expressway, Yamuna Rd, Outer Ring Rd, Central Secretariat–CP area)
+- trafficSignals: 16 DLH nodes (CP Rajiv Chowk, ITO, Kashmere Gate, Sec62-15, Sec18, Botanical Garden, Vaishali chowk, Rajiv Chowk-Gurugram cyber hub, Dwarka S21, Nehru Place, Saket, Karol Bagh, Janpath, Nizamuddin, ISBT, IGI airport exit)
+- hospitals: 5 (Apollo Delhi Indra Gandhi Marg 28.5979,77.2275; Max Saket 28.5463,77.2139; Fortis Noida Sector 62 28.6273,77.3667; BLK-Max Pusa Rd 28.6567,77.1898; Yatharth Greater Noida 28.4653,77.5195)
+- policeStations: 5 (Connaught Place PS 28.6329,77.2195; Sector 58 PS Noida 28.5857,77.3396; Ghaziabad Kotwali 28.6600,77.4300; Gurugram Sector 17 PS 28.4656,77.0793; IGI Airport PS 28.5562,77.0930)
+- demo users: demo-ambulance UP16AB1234 driver Vikram Singh operating Noida lat28.62 lng77.37; demo-police linked Sector 58 PS; demo-hospital linked Fortis Noida. (existing: demo-host, demo-police, demo-hospital, demo-ambulance, demo-public, demo-pending — may need to re-seed DLH variants)
+- activity_logs: ~120 rows back-dated (user registrations, logins, route searches Sector62→CP, ambulance registrations/verifications, emergencies, corridors, arrivals, signal sim events, incidents)
+- signal_events: ~10 rows; trafficIncidents 5-7 DLH incidents; routes 10+ public route searches; emergencyCorridors 3+.
+- IMPORTANT: emergency create uses ambulance.lat/lng default 26.5123/80.2331 — change fallbacks to DLH (28.6273/77.3687) in routers.ts create + selectCorridorSignals defaults + RequestsPage nearby coords (26.4499,80.3319 → 28.6139,77.209).
+- AlertsPage/EmergencyPage default coords already use KANPUR_CENTER=CITY_CENTER so auto-fixed.
+
+### Remaining frontend
+- Landing page full upgrade (hero "Move Smarter. Respond Faster. Save Lives.", buttons Explore Traffic/Emergency Services/Login/Create Account, sections Problem/Solution/How/User/Ambulance/Police/Hospital/Signals/Live/Technology/Impact/FAQ/Contact/Footer). Home.tsx exists; extend.
+- Ambulance multi-step registration UI (client-side document upload w/ preview) — may simplify to step form + document list since S3 real upload; use storagePut via server endpoint ambulances.uploadDocument.
+- History pages + nav + admin center + demo controls + impact/estimated metrics + live activity feed.
+- Signals page w/ simulation widget (/signals route? — currently /admin/signals in host nav; add public /signals page? The brief says /signals — add route accessible to police+host+ambulance).
+- Live traffic page: existing /map layers + DashboardPublic; maybe enhance MapPage w/ LIVE PROTOTYPE DATA label.
+- App.tsx routes to add: /history, /history-ambulance, /history-police, /history-hospital, /history-admin, /emergency-history, /corridor-history, /signal-history, /signals
+- vitest: add activity log tests (logActivity writes; id format) — keep 17 tests passing.
+- tsc + screenshots + checkpoint + deliver.
+
+### Misc
+- server/_core/map.ts has makeRequest(endpoint, params) for Google Maps proxy (geocode: /maps/api/geocode/json?address=...). Not used yet for freeform addresses; RouteSearch can geocode via client or skip (landmarks cover cases). Keep optional fromAddress/toAddress params unused for now OR simple landmark mapping.
+- storagePut helper in server/storage.ts (storagePut(relKey, data, contentType) → {key,url}).
+- recharts available (client/src/components/ui/chart.tsx exists).
+
+## Scope round 2 — STATE UPDATE (as of seed phase)
+
+DONE since last note update:
+- routers.ts: full activity instrumentation added for reportIncident, updateIncidentStatus, emergencies.create/approve/reject/activateCorridor/corridorProgress/arrive/complete, admin.verifyUser. Coordinate fallbacks switched to DLH (28.6273/77.3687 start; 28.6273/77.3667 Fortis Noida; RequestsPage 28.6139/77.209).
+- queries.ts: appended listActivityLogs (filters incl. date range/search/location/status), countActivityByRole, countActivitiesToday, recentActivities, listTripHistory, listCorridorHistory, listSignalEvents, listAmbulanceDocuments, getAmbulanceDocumentById, listPendingAmbulances. Imports activityLogs/ambulanceDocuments/signalEvents from schema.
+- routers.ts APPENDED (then moved BEFORE appRouter by move-routers.mjs — script already deleted): historyRouter (list/stats/recent, role-scoped for non-host), ambulanceRouter (documents/uploadDocument w/ storagePut+validation, updateDocument police review, pendingDocuments), signalsRouter (simulation w/ optimizedDuration calc, updateSimulation host w/ signal_events insert, history). All wired: historyRouter→appRouter.history, ambulances→appRouter.ambulances, signals→appRouter.signals (NOTE: signals router now exists twice — check for conflict: admin.signals is a query; appRouter can't have two `signals` keys! VERIFY AND RENAME the new one to signalsSimulation or merge into admin.)
+- schema: activityLogs/ambulanceDocuments/signalEvents OK. shared: CITY_CENTER/CITY_CODE=DLH/NCR_DISTRICTS/generateActivityId/generateTripId OK.
+- Remaining seed script: seed-dlh.mjs written at project root (delete after use). WARNING: it wipes routes/emergencyCorridors/emergencyRequests/trafficIncidents/roadSegments/trafficSignals/hospitals/policeStations/ambulances/ambulance_documents/signal_events/activity_logs/notifications/auditLogs and deletes demo-%-dlh users; inserts DLH demo data.
+- tsc CLEAN after all backend edits.
+- TODO after seed: run seed-dlh.mjs (pnpm exec tsx seed-dlh.mjs), verify SQL works; FIX duplicate `signals` router key; build frontend history pages + nav + admin demo controls; landing page upgrade; ambulance doc upload UI; signals sim page; vitest updates; screenshots; checkpoint.
+- Existing seed data (Kanpur) was deleted by previous host seed? NO — earlier sessions seeded Kanpur data into the SAME tables; the DLH seed deletes operational tables to replace with Delhi NCR data (acceptable since rebrand).
+- DB tables verified working via webdev_execute_sql.
+- IMPORTANT: check `appRouter` does not have duplicate `signals` key (host signals + signalsRouter).
+
+## Scope round 2 — STATE UPDATE (as of seed SUCCESS, Aug 14 ~03:55 UTC)
+- seed-dlh.mjs: FIXED and RAN successfully. Delhi NCR counts: roadSegments 7, trafficSignals 16, hospitals 5, policeStations 5, incidents 7, emergencyRequests 2, corridors 2, routes 12, signal_events 15, activity_logs 45, ambulances 1 (demo Vikram), users 11 (incl 4 demo-xxx-dlh: ambulance/police/hospital/public).
+- Duplicate signals key fixed: new router wired as appRouter.signalsSimulation (routers.ts line ~1444). tsc clean, vitest 17/17 pass.
+- Seed script bugs faced (for future ref): mysql2 promises → getConnection() NOT destructurable; VALUES ? counts must match arrays exactly (signals 10?, hospitals 9?, stations 6?+Delhi NCR, ambulances 7?, incidents 6? matching column order; routes needed createdByUserId+score; activity_logs needed a.actionType/a.actionDescription keys); trafficSignals/hospitals/policeStations tables need lastUpdated/updatedAt=NOW() (no DB default); reportId generation via LPAD.
+- NEXT (frontend): 
+  a. client/src/pages/HistoryPage.tsx (one page, role-aware tabs; used by /history via RoleShell; routes: /history public, /history-ambulance, /history-police, /history-hospital, /history-admin). Role-based: public sees own; ambulance sees own + corridors/trips; police sees approvals/rejects/signals; hospital sees arrivals/completions; admin/host sees full activity center (filters role/activity/status/location/date, search, stats cards, recharts, export CSV/JSON, live feed, timeline grouped by date, table).
+  b. Additional history pages: /emergency-history, /corridor-history, /signal-history (reuse HistoryPage with mode prop OR separate).
+  c. Nav: ROLE_NAV add 'Activity' (RoleShell bottom nav + DashboardLayout sidebar) → /history etc; admin history-admin under Analytics or separate.
+  d. Ambulance doc upload UI in RoleRegistration / ProfilePage (multi-step: vehicle → driver → documents; docs via ambulances.uploadDocument w/ storagePut).
+  e. Signals sim page /signals (police+host+ambulance) w/ signalsSimulation.simulation + updateSimulation; admin demo controls in AdminPage (Reset Demo Data → admin.resetDemoData?, Simulate Emergency auto-drive, Simulate Signal).
+  f. Landing page upgrade per build request (sections Problem/Solution/How/User/Ambulance/Police/Hospital/Signals/Live/Technology/Impact/FAQ/Contact/Footer; hero 'Move Smarter. Respond Faster. Save Lives.').
+  g. vitest add activity log tests; tsc; screenshots; delete seed-dlh.mjs; checkpoint.
+- DB seed script delete = seed-dlh.mjs at project root (also verify move-routers.mjs/dead notes).
+- History API shape (routers.ts historyRouter): list(input {role,actionType,status,location,from,to,search,limit,offset}) → {rows,total}; stats → cards; recent → rows; role-scoped mine variant for non-host (scope: user/ambulance/police/hospital). ambulanceRouter: documents/list/uploadDocument/updateDocument/pendingDocuments. signalsSimulation: simulation/updateSimulation/history.
+
+## Scope round 2 — demoControls + errors (Aug 14 ~03:58 UTC)
+- Added appRouter.demoControls: simulateEmergency (createCaller auto-drive ambulance→police approve→host activate→hospital arrive→complete + logActivity DEMO_EMERGENCY_SIMULATED), generateAccident (random type + location, logActivity INCIDENT_REPORTED), resetDemoData (delete activityLogs/signalEvents/ambulanceDocuments/routes/emergencyCorridors/emergencyRequests/trafficIncidents + logActivity ADMIN_ACTION).
+- historyRouter got trips (publicProcedure → q.listTripHistory) and corridors (publicProcedure → q.listCorridorHistory) endpoints.
+- After edit, tsc ERRORS with cascade "Property X in your router collides" (the classic tRPC error when ANY error exists in routers.ts — root cause unknown yet). Prior to this edit tsc was clean (1444-1446 lines, devserver log shows '0 errors' at 03:47).
+- Root cause hypothesis: demoControls block may reference undefined symbols: generateReportId (import from shared/intellitraffic?), activityLogs/signalEvents/ambulanceDocuments (schema imports), q.listAmbulances({limit}) signature (check queries.ts listAmbulances accepts {userId,limit}?), emergencies.create input needs hospitalId?/fromLat? — validate shapes from routers.ts create procedure; ambulance.documents() returns docs array (I used `(await caller.ambulances.documents()) ? undefined : undefined` hack — remove this line).
+- TODO: check routers.ts imports for shared helpers + schema; fix createCaller type issue (ctx must match createCallerSignature). Maybe simpler: implement simulateEmergency with direct SQL + reuse emergency procedures via internal helper, or skip createCaller (use drizzle inserts directly for demo control to avoid RBAC procedure complexity).
+
+## Scope round 2 — History UI created (Aug 14 ~03:58 UTC)
+HistoryPage.tsx created (client/src/pages/HistoryPage.tsx, ~620 lines) with 3 sub-views: AdminActivityCenter (stats cards, byRole stacked BarChart via recharts, live feed from history.recent, filterable table w/ role/action/status/location/search, pagination, CSV+JSON export), TripsCorridorsSignals (history.trips/history.corridors/signalsSimulation.history), RoleHistory (grouped-by-date timeline + incident cards + links to /emergency-history /corridor-history /signal-history). Scopes: public|ambulance|police|hospital|admin|emergencies|corridors|signals. Routes registered in App.tsx + ROLE_NAV updated (Activity nav items per role, Activity Center for host) + RoleShell grid-cols-6 for 6-item navs.
+ASSUMED API SHAPES (must verify w/ tsc): history.list row shape {activityId,userId,userRole,userName,userEmail,actionType,actionDescription,entityType,entityId,status,location,metadata,createdAt}; history.stats {byRole, today}; history.recent rows; history.trips → emergencyRequests rows {id,requestId,status,distanceKm,etaSec,createdAt}; history.corridors → emergencyCorridors rows {id,corridorId,status,progressPct,estimatedTimeSavedMin,signalsPrepared,totalSignals,activatedAt,closedAt}; signalsSimulation.history → signalEvents rows {id,signalId,signalCode?,phase,previousPhase,normalDurationSec,optimizedDurationSec,createdAt}; traffic.incidents returns [{id,reportId,type,district,status,createdAt,description,lat,lng}]. lib/ui exports emergencyStatusColor, incidentTypeLabel, trafficColor (check these exist!).
+NEXT: tsc check, fix lib/ui exports if missing, run tests, then ambulance doc upload UI, signals page wiring, landing page upgrade, vitest add, checkpoint.
+
+## Round 2 screenshot verification (Aug 14 ~04:03 UTC)
+- /history (host admin Activity Center): renders stats cards, incidents list, activity timeline. ISSUE: white text on near-white bg (headings "Incidents", date labels nearly invisible) — this screenshot is of host role but rendered with LIGHT background, meaning host view uses light theme while rest is dark? Actually host dashboard appears light theme (sidebar dark navy OK but content light). Other pages dark. Check RoleShell default theme for host or index.css default theme.
+- /activity: 404 — route not registered (App.tsx maybe uses /activity only for specific role or name differs). Fix route.
+- /emergency-history, /corridor-history, /signal-history: render OK with data (trips 2.1km ETA, corridors 4/6 signals ~14min saved, signal events).
+- /routes OK (Sector 62 Noida → CP Delhi defaults). /alerts OK ("Latest 9 reports across Kanpur" — old text remaining, fix "Kanpur"→Delhi NCR text). /emergency OK.
+- Incident reportIds IT-DLH-2026 format works (new DLH IDs).
+- TODO fixes: (1) light-bg host history page theme; (2) /activity 404; (3) "across Kanpur" strings in AlertsPage (grep "Kanpur" client/); (4) possibly Activity Center sidebar link points to /activity — verify nav href matches App.tsx route.
+- tsc clean, vitest 17/17 pass.
+
+## Screenshot verification round 2b
+Landing page now has the new dark hero ("Predict it. Clear it. Beat it." — Delhi NCR badge, lifecycle chips) — OK. Alerts "Latest 9 reports across Delhi NCR" OK. Map layers OK, signals 16, incidents 9, but Hospitals: 0 and Stations: 0 on map (seed may have failed those or counts wrong — check map detail panel counts query). BIG ISSUE: /history when accessed via host session renders with LIGHT background (white page content) while the app is dark — HistoryPage AdminActivityCenter uses light colors (bg-white/5 shows near-white). Actually comparing with /history-ambulance which rendered correctly dark earlier… no, all history screenshots show light bg for host. Need to check what distinguishes: host uses DashboardLayout with light theme? Look at how App.tsx mounts /history-admin inside RoleShell vs /history standalone. The /history route at line 179 may NOT be wrapped in dark theme shell. Fix: ensure history routes render with the same dark wrapper as others.
+
+## Screenshot verification round 2c (after restart)
+History pages still render LIGHT while /alerts, /map, / home render DARK in same session. So it IS real, and only history pages. Difference: HistoryPage root element must not inherit bg; other pages set explicit dark wrapper classes. In RoleShell line ~71 the content wrapper has `relative pb-24 lg:pb-4` but no bg class — body bg comes from somewhere. Home/Alerts pages likely set their own root container classes (e.g. `bg-background`). HistoryPage root `div` lacks a bg/text class, so falls back to body (light). FIX: add `bg-background text-foreground` classes to HistoryPage's outermost container, and check heading `text-white` assumptions — headings in screenshots are white-on-light (invisible "Activity", "My Activity" etc.). Replace text-white with text-foreground (works in both themes).
+
+## Phase 5 verification state (Aug 14, session resume)
+- [x] Theme fix: App.tsx ThemeProvider defaultTheme changed "light"→"dark" (app designed dark-navy; pages verified dark via screenshots).
+- [x] RBAC fix: server/rbac.ts requireRole now allows role==="admin" alongside "host". Map Hospitals/Stations verified 5/5. DB counts: hospitals=5, policeStations=5 (table name policeStations), signals=16.
+- [x] Tests 17/17 pass; tsc clean.
+- [ ] SignalsAdminPage enhanced with signal simulation widget (phase buttons, AI cycle, trpc.signals.simulate mutation endpoint exists). TODO: tsc + visual verify /admin/signals.
+- [ ] App.tsx dangling route /signals → HistoryPage scope=signals (nav never links; /signal-history exists). Remove /signals route.
+- [ ] Remove seed-dlh.mjs temp script before checkpoint.
+- [ ] Final checkpoint + deliver. Live: intellitraff-hes5vk4h.manus.space (auto-publish).

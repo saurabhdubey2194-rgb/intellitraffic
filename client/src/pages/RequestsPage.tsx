@@ -62,7 +62,7 @@ export default function RequestsPage() {
 
   // Resolve hospital names via traffic.nearby (cheap, public)
   const nearby = trpc.traffic.nearby.useQuery(
-    { lat: 26.4499, lng: 80.3319, radiusKm: 15 },
+    { lat: 28.6139, lng: 77.209, radiusKm: 15 },
     { retry: 1 }
   );
   const hospitalList = nearby.data?.hospitals ?? [];
