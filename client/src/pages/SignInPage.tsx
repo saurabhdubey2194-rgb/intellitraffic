@@ -30,7 +30,7 @@ import {
   ShieldCheck,
   TrafficCone,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 
 export type SignInRole = "ambulance" | "police" | "hospital";
@@ -134,9 +134,13 @@ export default function SignInPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  // Credential fields — informational for this prototype; the actual session is
-  // established by the existing OAuth flow (startLogin).
+  // Credential fields form an OAuth handoff: they are validated and persisted so
+  // the post-OAuth registration flow can pre-fill the user's role and ID. The
+  // session itself is established by the existing OAuth flow (startLogin).
   const [creds, setCreds] = useState<Partial<Record<SignInRole, { id: string; second: string; password: string }>>>({});
+  const [errors, setErrors] = useState<Partial<Record<SignInRole, string>>>({});
+  const [cardFocusIndex, setCardFocusIndex] = useState<number>(-1);
+  const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const roleDef = ROLES.find(r => r.key === selected);
 
@@ -157,11 +161,39 @@ export default function SignInPage() {
     setCreds(prev => ({ ...prev, [selected]: { ...prev[selected], [field]: value } }));
   };
 
+  /** Basic format validation so entered credentials are meaningful. */
+  const validate = (role: SignInRole): string | null => {
+    const c = creds[role];
+    const id = (c?.id ?? "").trim();
+    const second = (c?.second ?? "").trim();
+    if (!id) return `${ROLES.find(r => r.key === role)?.idLabel} is required.`;
+    if (role === "ambulance" && !/^(up\d{2}[a-z0-9]{2,3}\d{4}|\d{4,})$/i.test(id))
+      return "Use a registration number like UP16AB1234 (or a numeric fleet ID).";
+    if (role === "police" && !/^[A-Z]{2,4}[\d\-]{2,}$/i.test(id))
+      return "Station ID must look like PS-CP-01 (2–4 letters followed by a number, with or without dashes).";
+    if (role === "hospital" && !/^[A-Z\d]{4,}/i.test(id))
+      return "Hospital ID must start with at least 4 letters or digits.";
+    if (second && role !== "police") {
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(second);
+      const isPhone = /^\+?[\d\s\-()]{7,}$/.test(second);
+      if (!isEmail && !isPhone) return "Enter a valid email address or phone number.";
+    }
+    if ((c?.password ?? "").length > 0 && (c?.password ?? "").length < 4)
+      return "Password must be at least 4 characters.";
+    return null;
+  };
+
   const handleContinue = () => {
     if (!roleDef) return;
+    const issue = validate(roleDef.key);
+    setErrors(prev => ({ ...prev, [roleDef.key]: issue }));
+    if (issue) return;
+    // Persist the pending handoff so the post-OAuth flow can pre-fill role + ID.
     if (rememberMe) {
       try {
         localStorage.setItem("it.preferredRole", roleDef.key);
+        localStorage.setItem("it.pendingRole", roleDef.key);
+        localStorage.setItem("it.pendingId", (creds[roleDef.key]?.id ?? "").trim());
       } catch {
         /* storage unavailable */
       }
@@ -171,7 +203,32 @@ export default function SignInPage() {
     startLogin();
   };
 
+  /** Radiogroup keyboard navigation for the role cards. */
+  const handleCardKeyDown = (e: React.KeyboardEvent, index: number) => {
+    const dir =
+      e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    if (dir === 0) {
+      if (e.key === "Home") {
+        e.preventDefault();
+        cardRefs.current[0]?.focus();
+        setCardFocusIndex(0);
+      } else if (e.key === "End") {
+        e.preventDefault();
+        const last = ROLES.length - 1;
+        cardRefs.current[last]?.focus();
+        setCardFocusIndex(last);
+      }
+      return;
+    }
+    e.preventDefault();
+    const next = (index + dir + ROLES.length) % ROLES.length;
+    cardRefs.current[next]?.focus();
+    setCardFocusIndex(next);
+    setSelected(ROLES[next].key);
+  };
+
   const emergencyMode = selected === "ambulance";
+  const enteredId = selected ? (creds[selected]?.id ?? "").trim() : "";
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -217,7 +274,7 @@ export default function SignInPage() {
           role="radiogroup"
           aria-label="Access type"
         >
-          {ROLES.map(r => {
+          {ROLES.map((r, idx) => {
             const chosen = selected === r.key;
             return (
               <button
@@ -226,6 +283,9 @@ export default function SignInPage() {
                 role="radio"
                 aria-checked={chosen}
                 aria-label={`${r.label} — ${r.description}`}
+                ref={el => { cardRefs.current[idx] = el; }}
+                tabIndex={cardFocusIndex === -1 && chosen ? 0 : cardFocusIndex === idx ? 0 : -1}
+                onKeyDown={e => handleCardKeyDown(e, idx)}
                 onClick={() => setSelected(r.key)}
                 className={`group relative text-left rounded-2xl border bg-card p-6 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-primary ${
                   chosen ? `${r.accentBorder} ${r.accentGlow}` : "border-border hover:border-primary/50 hover:bg-[#0f1d33]"
@@ -281,9 +341,13 @@ export default function SignInPage() {
                 <Input
                   id="roleId"
                   value={creds[selected!]?.id ?? ""}
-                  onChange={e => setField("id", e.target.value)}
+                  onChange={e => {
+                    setField("id", e.target.value);
+                    setErrors(prev => ({ ...prev, [selected!]: undefined }));
+                  }}
                   placeholder={roleDef.idPlaceholder}
                   aria-label={roleDef.idLabel}
+                  aria-invalid={Boolean(errors[roleDef.key])}
                 />
               </div>
               {roleDef.secondIdLabel && (
@@ -309,7 +373,10 @@ export default function SignInPage() {
                     id="rolePassword"
                     type={showPassword ? "text" : "password"}
                     value={creds[selected!]?.password ?? ""}
-                    onChange={e => setField("password", e.target.value)}
+                    onChange={e => {
+                      setField("password", e.target.value);
+                      setErrors(prev => ({ ...prev, [selected!]: undefined }));
+                    }}
                     placeholder="Enter your password"
                     aria-label="Password"
                   />
@@ -335,10 +402,14 @@ export default function SignInPage() {
                   />
                   Remember me
                 </label>
-                <button type="button" className="text-sm text-primary hover:underline" aria-label="Forgot password">
-                  Forgot password?
-                </button>
+                <span className="text-xs text-muted-foreground">Secured sign-in • no password stored</span>
               </div>
+
+              {errors[roleDef.key] && (
+                <div role="alert" className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300">
+                  {errors[roleDef.key]}
+                </div>
+              )}
 
               <Button
                 type="button"
@@ -349,12 +420,12 @@ export default function SignInPage() {
                 {emergencyMode ? (
                   <>
                     <Siren className="h-4 w-4 mr-1.5" aria-hidden="true" />
-                    Sign In — Start Emergency
+                    Sign In — Start Emergency{enteredId ? ` (${enteredId})` : ""}
                   </>
                 ) : (
                   <>
                     <ShieldCheck className="h-4 w-4 mr-1.5" aria-hidden="true" />
-                    Sign In as {roleDef.label}
+                    Sign In as {roleDef.label}{enteredId ? ` (${enteredId})` : ""}
                   </>
                 )}
               </Button>

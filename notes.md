@@ -401,3 +401,13 @@ Remaining:
 - The host dashboard still renders LIGHT theme (user is logged in with localStorage theme set). Theme toggle exists in sidebar; light theme is a supported mode — tokens are semantic so this is fine.
 - Note: first & third screenshots show empty counts (users 0) — first-capture cache; second shows real data. Fine.
 - Next: verify with curl/fetch that /signin returns the page HTML structure (check title exists), or just accept redirect behavior. Then tests + checkpoint.
+
+### Post-checkpoint 1613e672 gaps (round 4.5, Aug 16)
+Checkpoint 1613e672 published (auto-publish). Remaining gaps flagged:
+1. SignInPage credential fields are cosmetic (form calls startLogin() ignoring inputs, comments say "informational"). The existing auth is Manus OAuth (no passwords) — cannot add real password auth without breaking platform OAuth. Plan: keep OAuth as single auth path but make form fields meaningful — validate ID/email formats, store selected role + ID in localStorage ("it.pendingRole"/"it.pendingId"), and after OAuth callback use pending info to pre-fill role registration flow. Also add "Forgot password?" → shows notice that auth is OAuth (change label to "Need help signing in?").
+2. Radiogroup arrow-key navigation: add onKeyDown on the cards grid to move focus between cards with ArrowLeft/ArrowRight/Home/End.
+3. Verify /signin visually in deployed site with an unauthenticated path: production now serves new checkpoint, but screenshot tool auto-redirects. Use browser screenshot after logging out? Simpler: verify via browser navigation to deployed /signin with ?theme=light and check rendering. The deployed site at intellitraff-hes5vk4h.manus.space/signin previously showed 404 because checkpoint hadn't been published yet — re-verify after publish (done).
+Existing auth constraints (confirmed): server/_core/oauth.ts — only OAuth session, password fields cannot be real. Document this honestly in the UI: the form is a guided sign-in handoff.
+
+### Round 4.5 verification (Aug 16)
+Deployed /signin?role=police renders correctly in an unauthenticated browser session: role cards (3 radiogroup buttons), Police selected glow, credential form (Station ID / Officer ID / password with show/hide), Remember me, footer disclaimers. Note: the deployed screenshot still shows the old "Forgot password?" link because checkpoint 1613e672 predates the current edits — the new checkpoint hasn't been saved yet; dev server matches latest code. Next: save checkpoint → production updates (auto-publish), then re-verify light mode on deployed site.

@@ -100,10 +100,15 @@
 - [x] HistoryPage light mode: replaced 66 hardcoded dark-theme classes with semantic tokens (text-foreground, bg-card, dark:text-* paired) and 500-shade palette colors; added ?theme=light|dark dev param to ThemeContext; verified light + dark via screenshots then checkpoint
 
 ## Round 4 — Professional role-based sign-in page
-- [ ] Role selection screen with 3 role cards (Ambulance/Emergency #EF4444, Police #38BDF8, Hospital #22C55E), responsive 3/2+1/1 grid, hover + selected glow + check icon
-- [ ] Role-specific login forms (Ambulance: ID/reg no, email/phone, password; Police: station ID, officer ID, password; Hospital: hospital ID, email/ID, password) with show/hide password, remember me, forgot password, back-to-selection
-- [ ] Disclaimer footer "Demo / simulated traffic data. Real signal control requires municipal integration." + "Authorized access only" notice, readable size
-- [ ] Backend role verification: selected role must not grant access; RBAC checks actual user.role on dashboard entry; unauthorized access shows Access Denied + redirect
-- [ ] Dashboard redirection: ambulance→/ambulance/dashboard (existing /dashboards/ambulance?), police→/police, hospital→/hospital; integrate with existing OAuth login (keep OAuth as fallback option)
-- [ ] Accessibility: WCAG AA contrast, keyboard-accessible cards, aria labels; subtle animations only
-- [ ] Verify dark + light, tests pass, checkpoint
+- [x] Role selection screen with 3 role cards (Ambulance/Emergency red #EF4444, Police sky #38BDF8, Hospital green #22C55E), responsive 3/2+1/1 grid, hover + selected glow + check icon (SignInPage.tsx, radiogroup, keyboard accessible)
+- [x] Role-specific login forms (Ambulance: ID/reg + email/phone; Police: station ID + officer ID; Hospital: hospital ID + email/ID) with show/hide password, remember me, forgot password link, ← Change access type; ambulance shows "Sign In — Start Emergency" (Siren)
+- [x] Footer notices: exact disclaimer in info container (#CBD5E1-adjacent readable text, Info icon) + "Authorized access only. Emergency services should use verified credentials." below, readable text-sm size
+- [x] Backend role verification: role selection is UI-only; RBAC enforced server-side (protectedProcedure + admin/host gates in routers.ts check ctx.user.role); RoleShell Access Denied guard (line 40-85) shows "Access Denied" + auto-redirect (3s countdown) to the verified role's dashboard
+- [x] Dashboard redirection: ambulance→/emergency, police→/requests, hospital→/emergencies (existing role dashboards), host/public→/dashboard; sign-in keeps existing OAuth flow (startLogin); signed-in visitors to /signin auto-redirect to their verified role dashboard; ?role= deep link preselects card
+- [x] Accessibility: radiogroup keyboard navigation, role="radio" + aria-checked, aria-labels on cards/buttons/inputs, visible labels, transition animations under 300ms only
+- [x] Verify dark + light (?theme=light param on /signin), tests pass 17/17, tsc clean, checkpoint 1613e672 published (auto-publish enabled)
+
+## Round 4.5 — close sign-in gaps (Aug 16)
+- [x] Sign-in form as real OAuth handoff: validate format per role (registration/station/hospital ID patterns, email/phone check), persist it.pendingRole/it.pendingId to localStorage, show entered ID on the sign-in button, validation errors in role=alert box, removed fake "Forgot password" link (OAuth-only auth, "Secured sign-in • no password stored")
+- [x] Radiogroup keyboard navigation on role cards: ArrowRight/ArrowLeft/ArrowUp/ArrowDown/Home/End move focus and select, Enter/Space activate (native button behavior); roving tabIndex, refs per card
+- [x] Re-verify /signin on deployed site in dark via browser (?role=police renders correctly: cards, glow, form, disclaimers); light mode verified in browser (?theme=light&role=hospital: white cards, green hospital CTA, form legible, semantic tokens); tests pass 17/17, tsc clean

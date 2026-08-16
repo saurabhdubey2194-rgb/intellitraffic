@@ -32,7 +32,7 @@ import {
   Shield,
   User,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 
 /**
@@ -51,7 +51,17 @@ export default function RoleRegistration({
   const [step, setStep] = useState<"choose" | "form">("choose");
   const [role, setRole] = useState<
     "public" | "ambulance" | "police" | "hospital" | null
-  >(null);
+  >(() => {
+    // OAuth handoff: if the user started at /signin and picked a role + ID,
+    // resume that selection here instead of making them choose again.
+    try {
+      const pending = localStorage.getItem("it.pendingRole");
+      if (pending === "ambulance" || pending === "police" || pending === "hospital") return pending;
+    } catch {
+      /* storage unavailable */
+    }
+    return null;
+  });
 
   return (
     <Dialog open={open} onOpenChange={open => !open && onDone()}>
@@ -122,11 +132,24 @@ function RoleForm({
     onError: err => toast.error(err.message),
   });
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => {
+    // OAuth handoff: pre-fill the field matching the sign-in ID value
+    // (registration no. for ambulances, officer ID for police, reg. no. for hospitals).
+    let handoffId = "";
+    try {
+      handoffId = localStorage.getItem("it.pendingId") ?? "";
+      localStorage.removeItem("it.pendingRole");
+      localStorage.removeItem("it.pendingId");
+    } catch {
+      /* storage unavailable */
+    }
+    return {
     phone: "",
     city: "",
     district: "New Delhi",
     state: "Uttar Pradesh",
+    handoffId,
+
     // ambulance
     driverName: "",
     registrationNumber: "",
@@ -145,12 +168,26 @@ function RoleForm({
     hospitalRegNumber: "",
     emergencyContact: "",
     address: "",
-    notes: "",
-  });
-
+        notes: "",
+  };
+});
   const set = (k: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // Apply the handoff ID to the matching field on first mount if present.
+  const appliedHandoff = useRef(false);
+  useEffect(() => {
+    if (appliedHandoff.current || !form.handoffId) return;
+    appliedHandoff.current = true;
+    const map: Record<string, keyof typeof form> = {
+      ambulance: "registrationNumber",
+      police: "officerId",
+      hospital: "hospitalRegNumber",
+    };
+    const field = map[role];
+    if (field) setForm(f => ({ ...f, [field]: form.handoffId }));
+  }, [role, form.handoffId]);
 
   return (
     <>
@@ -355,3 +392,4 @@ function RoleForm({
     </>
   );
 }
+
