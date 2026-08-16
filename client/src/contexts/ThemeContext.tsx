@@ -22,6 +22,11 @@ export function ThemeProvider({
   switchable = false,
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(() => {
+    // Dev override: ?theme=light|dark (verification only, not persisted)
+    if (typeof window !== "undefined") {
+      const param = new URLSearchParams(window.location.search).get("theme");
+      if (param === "light" || param === "dark") return param as Theme;
+    }
     if (switchable) {
       const stored = localStorage.getItem("theme");
       return (stored as Theme) || defaultTheme;

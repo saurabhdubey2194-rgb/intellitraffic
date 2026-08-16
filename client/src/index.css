@@ -26,6 +26,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
+  --color-field: var(--field);
   --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -67,7 +68,9 @@
   --destructive-foreground: oklch(0.982 0.0123 255.6);
   /* border #CBD5E1, input border #CBD5E1 */
   --border: oklch(0.849 0.0714 261.5);
-  --input: oklch(0.849 0.0714 261.5);
+  --input: oklch(0.702 0.1246 269.2); /* border #475569 light */
+  /* Spec form field bg (light mode white) */
+  --field: oklch(0.984 0.003 247.9);
   --ring: oklch(0.461 0.8005 292.8);
   /* sidebar #0D1B2A */
   --sidebar: oklch(0.093 0.1199 268.3);
@@ -102,7 +105,7 @@
   /* primary #2563EB, hover #1D4ED8 */
   --primary: oklch(0.461 0.8005 292.8);
   --primary-foreground: oklch(0.982 0.0123 255.6);
-  --secondary: oklch(0.164 0.1306 274.7);
+  --secondary: oklch(0.204 0.032 256.3); /* spec secondary button #1E293B */
   --secondary-foreground: oklch(0.982 0.0123 255.6);
   --muted: oklch(0.093 0.1199 268.3);
   --muted-foreground: oklch(0.665 0.1261 266.7);
@@ -114,6 +117,8 @@
   /* borders #334155-ish */
   --border: oklch(0.271 0.1380 270.5);
   --input: oklch(0.357 0.1329 269.2);
+  /* Spec form field bg #0D1B2A (dark mode) */
+  --field: oklch(0.125 0.1246 269.2);
   --ring: oklch(0.461 0.8005 292.8);
   /* sidebar #0D1B2A, active #2563EB */
   --sidebar: oklch(0.093 0.1199 268.3);

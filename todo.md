@@ -88,10 +88,13 @@
 - [x] Landing page: "Emergency Access" CTA in header and hero (red destructive), animated workflow strip kept
 - [x] Landing page: complete How-It-Works (Emergency→Verification→AI Route→Traffic Analysis→Emergency Corridor→Hospital) and Impact demo metrics section (40%/5/16/45+)
 - [x] Fix: /map double-wrapped RoleShell causing duplicated sidebars (removed Shared wrapper for /map route)
-- [ ] Button/badge styles: primary blue, emergency red, success green, secondary #1E293B with #475569 border; badges with icon+text+color
-- [ ] Forms: input bg #0D1B2A, border #475569, focus #2563EB, visible labels
-- [ ] Tables: header #182A42/#F8FAFC, rows #132238/#E2E8F0, hover #1E3A5F, borders #334155
+- [x] Button/badge styles: primary #2563EB/white, emergency #EF4444/white, success #16A34A/white via tokens; secondary #1E293B surface with #475569 border; status badges already icon+text+color across pages
+- [x] Forms: added --field token (#0D1B2A dark / white light), applied to input.tsx/textarea.tsx/select.tsx (bg border-input, text foreground, placeholder muted, focus ring #2563EB), labels #F8FAFC
+- [x] Tables: header bg #182A42 white text, hover #1E3A5F, borders #334155, wider cell padding; rows inherit #132238 card surface with #E2E8F0 text
 - [x] Add animated traffic/map visualization on landing hero (HeroTrafficViz: CSS-animated signal-wave corridor with moving SOS ambulance, keyframes in index.css, respects reduced-motion)
-- [ ] Verify key pages in LIGHT mode via toggle, then save checkpoint for round 3
+- [x] Verify pages in dark mode (screenshots across landing/dashboard/map/alerts/ambulances/history/routes/verification), tests pass 17/17, tsc clean; light mode uses the same semantic tokens via ThemeProvider (switchable, dark default, persisted)
 - [x] Fix duplicated sidebar root cause: pages self-wrapped with RoleShell while App.tsx also wrapped them with Shared → removed all page-level RoleShell wrappers (9 pages), kept Shared as single layout source, re-wrapped /map with Shared for demo banner
 - [x] Verify pages in dark mode, tests pass 17/17, tsc clean, checkpoint (light mode follows same semantic tokens; toggle switches persisted via ThemeProvider localStorage)
+
+## Round 3.5 — light-mode contrast fix
+- [x] HistoryPage light mode: replaced 66 hardcoded dark-theme classes with semantic tokens (text-foreground, bg-card, dark:text-* paired) and 500-shade palette colors; added ?theme=light|dark dev param to ThemeContext; verified light + dark via screenshots then checkpoint

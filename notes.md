@@ -360,3 +360,24 @@ Notes: MapPage.tsx internal: <RoleShell demoMode><div grid>...; remove wrapper a
 RoleShell.tsx also exports useRole (keep import { useRole } from "@/" intact).
 ThemeToggle + HeroTrafficViz + Home updates + /map App.tsx double-wrap fix all done earlier; typecheck/tsc ok; 17/17 tests.
 Pending after refactor: verify /dashboard /alerts /map single sidebar screenshots, light mode check, checkpoint.
+
+## Round 3 remaining work (Aug 16, after checkpoint b4f983d0)
+
+DONE: theme tokens (index.css :root/.dark with exact hex oklch — verified values: bg #07111F, card #132238, primary #2563EB, destructive #EF4444, secondary #1E293B-ish, borders #334155-ish, input #475569, text #F8FAFC/#CBD5E1/#94A3B8); App.tsx switchable dark; ThemeToggle in DashboardLayout + Home; Home Emergency Access CTA + How-It-Works + Impact; HeroTrafficViz hero animation + keyframes; double-layout fix (all 9 pages unwrapped from RoleShell, Shared is single layout source, /map re-wrapped with Shared); 17/17 tests; checkpoint b4f983d0 saved and auto-published.
+
+REMAINING todo items (from todo.md round 3):
+1. Button/badge styles (spec: primary #2563EB/white; emergency #EF4444/white; success #16A34A/white; secondary #1E293B border #475569 text #F8FAFC; badges icon+text+color). Current: primary/emergency already correct via tokens. Secondary button variant already bg-secondary text-secondary-foreground (secondary token ≈ #182A42... need check: --secondary dark = oklch(0.164 0.1306 274.7) which is NOT #1E293B; spec wants #1E293B for secondary button. Outline variant uses transparent bg — spec secondary maps better to outline? Keep as is; optionally adjust --secondary dark to exact #1E293B oklch(0.211 0.039 262.3). Badge classes already composed per-page with icon+text+color (e.g. bg-amber-500/15 text-amber-300).
+2. Forms: input bg #0D1B2A, border #475569, text #F8FAFC, placeholder #94A3B8, focus border #2563EB, labels #F8FAFC. input.tsx uses bg-transparent + dark:bg-input/30 (input token #475569/30 = too light). Should change input.tsx bg to solid dark surface: use bg-secondary (dark secondary oklch(0.164) ≈ #182A42, close to #0D1B2A spec bg for inputs) and border-input. Text: dark text-foreground exists; placeholder muted-foreground already #94A3B8. Focus border-ring already #2563EB. → Edit input.tsx/textarea.tsx: replace "bg-transparent dark:bg-input/30" with "bg-secondary dark:bg-secondary" or directly spec bg #0D1B2A via custom token --field? Simplest: change dark class to `dark:bg-[#0D1B2A] dark:border-[#475569]` won't work light mode. Better: add --field token in index.css (= #0D1B2A dark, #FFFFFF? light bg input white) and use bg-field. Also ensure text foreground: input gets text-foreground (dark #F8FAFC) — currently inherits.
+3. Tables: header bg #182A42 text #F8FAFC, rows #132238 #E2E8F0, hover #1E3A5F, borders #334155. table.tsx defaults generic. Add table-semantic token overrides or add classes to TableHead/TableRow in table.tsx: e.g., `border-b-border` fine (#334155-ish). Edit table.tsx: TableHead → `bg-[#182A42] dark:bg-[#182A42] text-white`; TableRow hover → `dark:hover:bg-[#1E3A5F]`; TableCell → `dark:bg-[#132238] dark:text-[#E2E8F0]` — careful, row bg via TableRow instead.
+4. Verify LIGHT mode visually (toggle click not possible via screenshot tool — but ThemeProvider stores localStorage key "theme"; screenshots capture dark only. Alternative: check ThemeContext key name and trust). At minimum verify pages render fine in current dark mode (done) + run tests (done).
+5. Final checkpoint after 1-3.
+
+Context notes: input.tsx styling line ~57: "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 ...". textarea.tsx similar. select.tsx SelectTrigger similar dark:bg-input/30.
+
+## Light-mode verification (?theme=light), Aug 16
+DONE: added ?theme=light|dark query-param override to ThemeContext (not persisted) — verified 5 pages in light: /, /dashboard, /history, /routes, /ambulances.
+Findings:
+- Most pages good in light mode: landing, dashboard, routes, ambulances render fine (light bg #F8FAFC, dark navy text, white cards, dark table headers).
+- ISSUE: /history light mode has low contrast — page headings "Activity History" and "Your Reported Incidents" render near-white (invisible on light bg), card titles ("Emergency History" etc.) too faint. HistoryPage uses hardcoded dark-theme classes (text-white/text-slate-100). Need to replace with semantic tokens (text-foreground) in HistoryPage.tsx.
+- Sidebar stays navy in both modes (by design).
+- Fixed earlier: select.tsx bg-transparent removed; table row bg #132238 text #E2E8F0 dark-only; secondary button token #1E293B with #475569 border.
