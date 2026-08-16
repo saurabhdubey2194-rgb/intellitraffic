@@ -37,30 +37,48 @@ export default function RoleShell({
     return <div className="min-h-screen" />;
   }
 
-  if (!user) {
+  // Access Denied: a signed-in user visiting a role-specific dashboard that
+  // does not match their verified role is sent to their authorized dashboard.
+  // RBAC is enforced server-side on every protected procedure — this guard
+  // only keeps the UI surface consistent.
+  const accessCheck = checkAccess(role, location);
+  if (!user || accessCheck) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="max-w-sm w-full rounded-2xl border border-white/10 bg-card p-8 text-center space-y-4">
-          <div className="h-12 w-12 mx-auto rounded-xl bg-emerald-500/10 border border-emerald-400/20 flex items-center justify-center">
-            <ShieldAlert className="h-6 w-6 text-emerald-300" />
+          <div className="h-12 w-12 mx-auto rounded-xl bg-red-500/10 border border-red-400/20 flex items-center justify-center">
+            <ShieldAlert className="h-6 w-6 text-red-300" />
           </div>
-          <h1 className="text-xl font-bold">Sign in to continue</h1>
-          <p className="text-sm text-muted-foreground">
-            This page is reserved for verified IntelliTraffic accounts. Sign in to
-            access your role dashboard.
-          </p>
-          <Link
-            href="/"
-            className="block text-sm font-semibold text-emerald-300 hover:text-emerald-200"
-          >
-            ← Back to home
-          </Link>
-          <button
-            onClick={() => startLogin()}
-            className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 transition-colors"
-          >
-            Sign In
-          </button>
+          {user ? (
+            <>
+              <h1 className="text-xl font-bold text-red-300">Access Denied</h1>
+              <p className="text-sm text-muted-foreground">
+                This dashboard belongs to another role. Your verified role ({ROLE_LABEL[role] ?? role})
+                does not have access here. You will be taken to your authorized dashboard.
+              </p>
+              <RedirectButton target={accessCheck?.target ?? "/dashboard"} />
+            </>
+          ) : (
+            <>
+              <h1 className="text-xl font-bold">Sign in to continue</h1>
+              <p className="text-sm text-muted-foreground">
+                This page is reserved for verified IntelliTraffic accounts. Sign in to
+                access your role dashboard.
+              </p>
+              <Link
+                href="/signin"
+                className="block text-sm font-semibold text-emerald-300 hover:text-emerald-200"
+              >
+                ← Choose your access type
+              </Link>
+              <button
+                onClick={() => startLogin()}
+                className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 transition-colors"
+              >
+                Sign In
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -119,6 +137,62 @@ function MobileBottomNav({
 }
 
 /** Sticky SOS/emergency quick-action element for ambulance & hospital roles. */
+/**
+ * Which role-specific paths each role is authorized to view. Paths not listed
+ * below (shared routes like /map, /alerts, /profile, /routes, /history-*,
+ * /admin/* for host) are accessible to everyone signed in; admin routes are
+ * gated server-side to host/admin.
+ */
+function checkAccess(
+  role: string,
+  path: string,
+): { target: string } | null {
+  const allowed = ROLE_DASHBOARD_PATHS[role] ?? [];
+  if (allowed.length === 0 || allowed.includes(path)) return null;
+  return { target: ROLE_DEFAULT_PATH[role] ?? "/dashboard" };
+}
+
+const ROLE_DASHBOARD_PATHS: Record<string, string[]> = {
+  ambulance: ["/emergency", "/dashboard"],
+  police: ["/requests", "/dashboard"],
+  hospital: ["/emergencies", "/ambulances", "/dashboard"],
+  public: ["/dashboard"],
+  host: [], // host/admin may view all dashboards
+};
+
+const ROLE_DEFAULT_PATH: Record<string, string> = {
+  ambulance: "/emergency",
+  police: "/requests",
+  hospital: "/emergencies",
+  public: "/dashboard",
+};
+
+function RedirectButton({ target }: { target: string }) {
+  const [count, setCount] = useState(3);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setCount(c => {
+        if (c <= 1) window.location.href = target;
+        return Math.max(0, c - 1);
+      });
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [count, target]);
+  return (
+    <div className="space-y-2">
+      <Link
+        href={target}
+        className="inline-flex items-center rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-bold px-4 py-2"
+      >
+        Go to my dashboard now
+      </Link>
+      <p className="text-xs text-muted-foreground">
+        Redirecting in {count}s…
+      </p>
+    </div>
+  );
+}
+
 function StickyEmergency({ role }: { role: string }) {
   const [location, setLocation] = useLocation();
   // Only show on ambulance home & hospital emergencies pages

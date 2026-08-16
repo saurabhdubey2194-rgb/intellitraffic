@@ -129,7 +129,7 @@ export default function Home() {
                 Sign In
               </Button>
             )}
-            <Link href="/emergencies">
+            <Link href="/signin">
               <Button variant="destructive" className="font-semibold">
                 <SirenAlt className="mr-1 h-4 w-4" /> Emergency Access
               </Button>
@@ -174,7 +174,7 @@ export default function Home() {
                   Explore Platform
                 </Button>
               </Link>
-              <Link href="/emergencies">
+              <Link href="/signin">
                 <Button size="lg" variant="destructive" className="font-bold">
                   <SirenAlt className="mr-1 h-4 w-4" /> Emergency Access
                 </Button>

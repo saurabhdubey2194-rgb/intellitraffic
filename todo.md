@@ -98,3 +98,12 @@
 
 ## Round 3.5 — light-mode contrast fix
 - [x] HistoryPage light mode: replaced 66 hardcoded dark-theme classes with semantic tokens (text-foreground, bg-card, dark:text-* paired) and 500-shade palette colors; added ?theme=light|dark dev param to ThemeContext; verified light + dark via screenshots then checkpoint
+
+## Round 4 — Professional role-based sign-in page
+- [ ] Role selection screen with 3 role cards (Ambulance/Emergency #EF4444, Police #38BDF8, Hospital #22C55E), responsive 3/2+1/1 grid, hover + selected glow + check icon
+- [ ] Role-specific login forms (Ambulance: ID/reg no, email/phone, password; Police: station ID, officer ID, password; Hospital: hospital ID, email/ID, password) with show/hide password, remember me, forgot password, back-to-selection
+- [ ] Disclaimer footer "Demo / simulated traffic data. Real signal control requires municipal integration." + "Authorized access only" notice, readable size
+- [ ] Backend role verification: selected role must not grant access; RBAC checks actual user.role on dashboard entry; unauthorized access shows Access Denied + redirect
+- [ ] Dashboard redirection: ambulance→/ambulance/dashboard (existing /dashboards/ambulance?), police→/police, hospital→/hospital; integrate with existing OAuth login (keep OAuth as fallback option)
+- [ ] Accessibility: WCAG AA contrast, keyboard-accessible cards, aria labels; subtle animations only
+- [ ] Verify dark + light, tests pass, checkpoint
