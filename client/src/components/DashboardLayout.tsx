@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { ThemeToggle } from "./ThemeToggle";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
@@ -272,9 +273,13 @@ function DashboardLayoutContent({
                   <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider bg-accent text-accent-foreground rounded px-2 py-0.5 whitespace-nowrap">
                     {ROLE_LABEL[role]}
                   </span>
+                  <ThemeToggle className="!border-sidebar-border h-8 w-8 !text-sidebar-foreground/90" />
                 </div>
               ) : (
-                <LogoMark className="shrink-0" />
+                <div className="flex items-center justify-center gap-2 shrink-0">
+                  <LogoMark className="shrink-0" />
+                  <ThemeToggle className="!border-sidebar-border h-8 w-8 !text-sidebar-foreground/90" />
+                </div>
               )}
             </div>
           </SidebarHeader>
@@ -348,7 +353,7 @@ function DashboardLayoutContent({
 
       <SidebarInset>
         {isMobile && (
-          <div className="flex border-b border-white/5 h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
+          <div className="flex border-b border-border h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
               <div className="flex items-center gap-3">
@@ -357,9 +362,12 @@ function DashboardLayoutContent({
                 </span>
               </div>
             </div>
-            <span className="text-[10px] font-semibold uppercase tracking-wider bg-accent text-accent-foreground rounded px-2 py-1 whitespace-nowrap mr-2">
-              {ROLE_LABEL[role]}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider bg-accent text-accent-foreground rounded px-2 py-1 whitespace-nowrap mr-2">
+                {ROLE_LABEL[role]}
+              </span>
+              <ThemeToggle />
+            </div>
           </div>
         )}
         <main className="flex-1 p-4">{children}</main>

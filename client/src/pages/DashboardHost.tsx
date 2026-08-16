@@ -83,8 +83,8 @@ export default function DashboardHost() {
   }>;
 
   return (
-    <RoleShell>
-      <div className="space-y-4">
+      <>
+            <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -231,7 +231,7 @@ export default function DashboardHost() {
           </Card>
         )}
       </div>
-    </RoleShell>
+      </>
   );
 }
 

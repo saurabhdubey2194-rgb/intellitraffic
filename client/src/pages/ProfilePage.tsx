@@ -69,8 +69,8 @@ export default function ProfilePage() {
   const police = p?.police ?? null;
 
   return (
-    <RoleShell>
-      <div className="space-y-4">
+      <>
+            <div className="space-y-4">
         <h1 className="text-2xl font-black tracking-tight">My Profile</h1>
 
         {/* Account card */}
@@ -202,7 +202,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
-    </RoleShell>
+      </>
   );
 }
 

@@ -77,8 +77,8 @@ export default function RouteSearch() {
   const best = results[0];
 
   return (
-    <RoleShell>
-      <div className="space-y-4">
+      <>
+            <div className="space-y-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight">AI Route Planner</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -341,7 +341,7 @@ export default function RouteSearch() {
           </Card>
         )}
       </div>
-    </RoleShell>
+      </>
   );
 }
 

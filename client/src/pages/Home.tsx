@@ -8,6 +8,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { startLogin } from "@/const";
+import { HeroTrafficViz } from "@/components/HeroTrafficViz";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { ROLE_LABEL } from "@/lib/ui";
 import {
@@ -29,6 +31,9 @@ import {
   User,
   Waves,
   Zap,
+  Clock,
+  Route,
+  Siren as SirenAlt,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -76,6 +81,24 @@ const WORKFLOW = [
   { icon: LineChart, label: "Analytics" },
 ];
 
+/** How-It-Works chain per spec: Emergency → Verification → AI Route → Traffic Analysis → Emergency Corridor → Hospital */
+const HOW_IT_WORKS = [
+  { icon: SirenAlt, step: "01", title: "Emergency", desc: "An ambulance driver or public user raises an emergency request with destination hospital." },
+  { icon: ShieldCheck, step: "02", title: "Verification", desc: "Police verify the ambulance registration and confirm the hospital association." },
+  { icon: Bot, step: "03", title: "AI Route", desc: "The AI route engine evaluates five inputs and selects the fastest predicted path." },
+  { icon: LineChart, step: "04", title: "Traffic Analysis", desc: "Predictive traffic analysis forecasts congestion along the route in real time." },
+  { icon: Radio, step: "05", title: "Emergency Corridor", desc: "Signals along the path prepare a green corridor before the ambulance arrives." },
+  { icon: Hospital, step: "06", title: "Hospital", desc: "The hospital receives live ETA, prepares intake, and confirms arrival on completion." },
+];
+
+/** Impact demo metrics (simulated demo values as requested by the spec). */
+const IMPACT_METRICS = [
+  { icon: Clock, value: "~40%", label: "Emergency Response Improvement", note: "Simulated reduction in response time with green corridors" },
+  { icon: Ambulance, value: "5", label: "Active Ambulances", note: "Verified demo ambulances across Delhi NCR" },
+  { icon: Route, value: "16", label: "Signals Coordinated", note: "Simulated AI signal optimization across the demo grid" },
+  { icon: SirenAlt, value: "45+", label: "Activity Events Logged", note: "Persistent audit trail with ACT-DLH-2026 IDs" },
+];
+
 export default function Home() {
   const { user, loading } = useAuth();
 
@@ -84,13 +107,14 @@ export default function Home() {
       {/* Top bar */}
       <header className="sticky top-0 z-50 border-b border-white/5 bg-[#0c1a33]/85 backdrop-blur">
         <div className="container flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
             <LogoMark />
             <span className="font-bold tracking-tight text-lg">
               Intelli<span className="text-emerald-400">Traffic</span>
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle className="!border-white/10 !text-slate-200" />
             {loading ? null : user ? (
               <Link href="/dashboard">
                 <Button variant="secondary" className="font-semibold">
@@ -105,6 +129,11 @@ export default function Home() {
                 Sign In
               </Button>
             )}
+            <Link href="/emergencies">
+              <Button variant="destructive" className="font-semibold">
+                <SirenAlt className="mr-1 h-4 w-4" /> Emergency Access
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
@@ -113,6 +142,7 @@ export default function Home() {
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.12),transparent_55%)]" />
         <div className="container relative py-20 md:py-28 fade-in-up">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-12 items-center">
           <div className="max-w-3xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300 mb-6">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -137,14 +167,23 @@ export default function Home() {
                 onClick={() => startLogin()}
                 className="font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25"
               >
-                Join the Platform <ArrowRight className="ml-1 h-4 w-4" />
+                Get Started <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
               <Link href="/map">
                 <Button size="lg" variant="outline" className="font-bold border-white/15">
-                  Explore Live Map
+                  Explore Platform
+                </Button>
+              </Link>
+              <Link href="/emergencies">
+                <Button size="lg" variant="destructive" className="font-bold">
+                  <SirenAlt className="mr-1 h-4 w-4" /> Emergency Access
                 </Button>
               </Link>
             </div>
+          </div>
+          <div className="hidden lg:flex justify-center">
+            <HeroTrafficViz />
+          </div>
           </div>
         </div>
       </section>
@@ -166,6 +205,56 @@ export default function Home() {
                   <ArrowRight className="h-3.5 w-3.5 text-muted-foreground hidden sm:block" />
                 )}
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="container py-16 md:py-20">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+          How It Works
+        </p>
+        <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-10">
+          From emergency call to hospital arrival
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {HOW_IT_WORKS.map((step, i) => (
+            <Card key={step.step} className="border-white/10 bg-card fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 border border-emerald-400/25 flex items-center justify-center">
+                    <step.icon className="h-5 w-5 text-emerald-300" />
+                  </div>
+                  <span className="text-xs font-bold tracking-widest text-muted-foreground">STEP {step.step}</span>
+                </div>
+                <h3 className="font-bold tracking-tight">{step.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Impact */}
+      <section className="border-t border-white/5 bg-white/[0.025]">
+        <div className="container py-16 md:py-20">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+            Platform Impact — Demo Metrics
+          </p>
+          <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-10">
+            Measured outcomes in the Delhi NCR demo
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {IMPACT_METRICS.map((m, i) => (
+              <Card key={m.label} className="border-white/10 bg-card fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
+                <CardContent className="p-5 space-y-2">
+                  <m.icon className="h-5 w-5 text-emerald-300" />
+                  <p className="text-3xl font-black tracking-tight">{m.value}</p>
+                  <p className="text-sm font-semibold">{m.label}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{m.note}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>

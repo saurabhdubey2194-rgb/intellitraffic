@@ -66,8 +66,8 @@ export default function HospitalEmergencies() {
   const history = rows.filter(r => ["completed", "rejected", "cancelled"].includes(r.status));
 
   return (
-    <RoleShell>
-      <div className="space-y-4">
+      <>
+            <div className="space-y-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
             <HeartPulse className="h-6 w-6 text-rose-300" /> Emergency Bay
@@ -237,7 +237,7 @@ export default function HospitalEmergencies() {
           </>
         )}
       </div>
-    </RoleShell>
+      </>
   );
 }
 

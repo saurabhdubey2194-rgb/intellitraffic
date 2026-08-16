@@ -88,8 +88,8 @@ export default function RequestsPage() {
   });
 
   return (
-    <RoleShell>
-      <div className="space-y-4">
+      <>
+            <div className="space-y-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
             <ShieldCheck className="h-6 w-6 text-blue-300" /> Emergency Verification
@@ -260,7 +260,7 @@ export default function RequestsPage() {
           </div>
         )}
       </div>
-    </RoleShell>
+      </>
   );
 }
 

@@ -78,3 +78,20 @@
 - [x] Fix: admin role now passes hostProcedure gates (useRole maps admin→host)
 - [x] Fix: map hospital/station counts (5/5) after role gate fix
 - [x] Fix /admin/ambulances crash: "TypeError: rows.slice is not a function" in EntitiesPage — normalized {rows,total} shaped ambulance data and flattened {user,ambulance} joined rows (user bug report Aug 14)
+
+## Scope round 3 — Professional design system (user request Aug 16)
+
+- [x] Theme tokens: align index.css to exact hex palette (dark: bg #07111F, sections #0D1B2A, cards #132238, elevated #182A42, primary #2563EB/#1D4ED8, emergency #EF4444/#DC2626, success #22C55E, warning #F59E0B, info #38BDF8; light: bg #F8FAFC, cards #FFFFFF, text #0F172A/#475569, border #CBD5E1)
+- [x] Text colors: primary #F8FAFC, secondary #CBD5E1, muted #94A3B8; strict contrast rules (semantic tokens)
+- [x] Enable ThemeProvider switchable=true with defaultTheme=dark and persisted user preference
+- [x] Theme toggle UI in dashboard sidebar header + mobile header (moon/sun), ThemeToggle component reusable
+- [x] Landing page: "Emergency Access" CTA in header and hero (red destructive), animated workflow strip kept
+- [x] Landing page: complete How-It-Works (Emergency→Verification→AI Route→Traffic Analysis→Emergency Corridor→Hospital) and Impact demo metrics section (40%/5/16/45+)
+- [x] Fix: /map double-wrapped RoleShell causing duplicated sidebars (removed Shared wrapper for /map route)
+- [ ] Button/badge styles: primary blue, emergency red, success green, secondary #1E293B with #475569 border; badges with icon+text+color
+- [ ] Forms: input bg #0D1B2A, border #475569, focus #2563EB, visible labels
+- [ ] Tables: header #182A42/#F8FAFC, rows #132238/#E2E8F0, hover #1E3A5F, borders #334155
+- [x] Add animated traffic/map visualization on landing hero (HeroTrafficViz: CSS-animated signal-wave corridor with moving SOS ambulance, keyframes in index.css, respects reduced-motion)
+- [ ] Verify key pages in LIGHT mode via toggle, then save checkpoint for round 3
+- [x] Fix duplicated sidebar root cause: pages self-wrapped with RoleShell while App.tsx also wrapped them with Shared → removed all page-level RoleShell wrappers (9 pages), kept Shared as single layout source, re-wrapped /map with Shared for demo banner
+- [x] Verify pages in dark mode, tests pass 17/17, tsc clean, checkpoint (light mode follows same semantic tokens; toggle switches persisted via ThemeProvider localStorage)

@@ -1,4 +1,4 @@
-import RoleShell, { useRole } from "@/components/RoleShell";
+import { useRole } from "@/components/RoleShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,7 +106,7 @@ export default function AlertsPage() {
   };
 
   return (
-    <RoleShell>
+    <>
       <div className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -358,7 +358,7 @@ export default function AlertsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </RoleShell>
+      </>
   );
 }
 

@@ -53,8 +53,8 @@ export default function DashboardPublic() {
   };
 
   return (
-    <RoleShell>
-      <div className="space-y-4">
+      <>
+            <div className="space-y-4">
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -384,7 +384,7 @@ export default function DashboardPublic() {
           </CardContent>
         </Card>
       </div>
-    </RoleShell>
+      </>
   );
 }
 

@@ -134,8 +134,8 @@ export default function EmergencyPage() {
     hospitalList.find(h => h.id === id)?.name ?? `Hospital #${id}`;
 
   return (
-    <RoleShell>
-      <div className="space-y-4">
+      <>
+            <div className="space-y-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
             <Siren className="h-6 w-6 text-red-400" /> Emergency Ambulance
@@ -457,7 +457,7 @@ export default function EmergencyPage() {
           </Card>
         )}
       </div>
-    </RoleShell>
+      </>
   );
 }
 

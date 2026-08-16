@@ -269,8 +269,8 @@ export default function MapPage() {
   const loading = traffic.isLoading || incidents.isLoading;
 
   return (
-    <RoleShell demoMode>
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_300px] gap-4">
+      <>
+            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_300px] gap-4">
         {/* Layer controls */}
         <Card className="border-white/10 bg-card">
           <CardHeader className="pb-2">
@@ -411,7 +411,7 @@ export default function MapPage() {
           </CardContent>
         </Card>
       </div>
-    </RoleShell>
+      </>
   );
 }
 

@@ -307,3 +307,56 @@ History pages still render LIGHT while /alerts, /map, / home render DARK in same
 - [ ] App.tsx dangling route /signals → HistoryPage scope=signals (nav never links; /signal-history exists). Remove /signals route.
 - [ ] Remove seed-dlh.mjs temp script before checkpoint.
 - [ ] Final checkpoint + deliver. Live: intellitraff-hes5vk4h.manus.space (auto-publish).
+
+## Round 3 — Design system implementation state (Aug 16)
+
+User files: /home/ubuntu/upload/pasted_content_5.txt (master build prompt/spec), /home/ubuntu/upload/pasted_content_6.txt (design system, 690 lines).
+User confirmed option A: apply design system to existing app.
+
+Exact hex palette (converted to oklch for index.css — values exact):
+main bg #07111F=oklch(0.049 0.105 273.9), section #0D1B2A=oklch(0.093 0.12 268.3), card #132238=oklch(0.13 0.163 276.2), elevated #182A42=oklch(0.167 0.174 274), primary #2563EB=oklch(0.461 0.8 292.8), hover #1D4ED8=oklch(0.39 0.831 296.2), emergency #EF4444=oklch(0.55 0.756 31.2), hover #DC2626=oklch(0.479 0.818 35), success #22C55E=oklch(0.702 0.737 146.9), success btn #16A34A=oklch(0.588 0.654 146.4), warning #F59E0B=oklch(0.722 0.788 72.7), info #38BDF8=oklch(0.722 0.424 247.8), text primary #F8FAFC=oklch(0.982 0.012 255.6), secondary #CBD5E1=oklch(0.849 0.071 261.5), muted #94A3B8=oklch(0.665 0.126 266.7), light bg #F8FAFC, light card #FFFFFF, light text #0F172A=oklch(0.08 0.145 283.3), light text secondary #475569=oklch(0.357 0.133 269.2), light border #CBD5E1, table row hover #1E3A5F, table border #334155=oklch(0.271 0.138 270.5), form border #475569, input bg #0D1B2A, error #FCA5A5=oklch(0.763 0.348 22.6), success text #86EFAC=oklch(0.869 0.505 152.7).
+
+Done so far:
+- index.css: :root = light tokens, .dark = dark command-center tokens, all exact. Removed stale duplicate .dark block and hardcoded body colors (body now uses var(--background)/var(--foreground)).
+- App.tsx: ThemeProvider defaultTheme="dark" switchable={true}.
+- Verified dark screenshots OK (deeper navy, spec-compliant).
+
+Remaining:
+- Add ThemeToggle component using useTheme().toggleTheme (contexts/ThemeContext.tsx already exposes toggleTheme + switchable when switchable=true). Put toggle in RoleShell header area (RoleShell.tsx, nav bar near user chip) AND public Home.tsx header.
+- DashboardLayout.tsx has HOST nav items (users line 68-ish: profile at /profile). No theme hook imported yet.
+- Landing page: add "Emergency Access" CTA (Home.tsx), animated traffic visualization, complete How-It-Works (Emergency→Verification→AI Route→Traffic Analysis→Emergency Corridor→Hospital), Impact demo metrics section. Existing Home.tsx already has hero + features + roles + FAQ; check gaps.
+- Light mode verification screenshots (set localStorage theme=light or check toggle renders both).
+- Tests 17/17, tsc clean, checkpoint. Live domain: intellitraff-hes5vk4h.manus.space.
+
+## Round 3 progress update (Aug 16)
+
+Done: theme tokens (index.css :root/.dark exact hex), App.tsx switchable dark, ThemeToggle component added to DashboardLayout header (desktop + mobile) and public Home header; Home.tsx updated with Emergency Access CTA (header + hero, destructive red), Get Started / Explore Platform buttons, new "How It Works" 6-step section (Emergency→Verification→AI Route→Traffic Analysis→Emergency Corridor→Hospital), new "Impact" demo metrics section (40% / 5 ambulances / 16 signals / 45+ events). Tests 17/17, tsc clean.
+
+Bug found & fixed during verification: /map had double RoleShell (Shared wrapper in App.tsx + RoleShell inside MapPage) → duplicated sidebars. Fixed by removing Shared wrapper for /map route in App.tsx. Screenshot now shows single sidebar, correct.
+
+Note: MapPage renders inside RoleShell which wraps with demoMode banner. Screenshot session user = admin role, host nav shown.
+
+Remaining: verify light mode (screenshot tool doesn't allow localStorage set; optionally trust toggle implementation), mark todos, checkpoint + deliver.
+
+## Double-layout refactor state (Aug 16)
+
+Root cause of duplicated sidebars: pages self-wrap with <RoleShell> AND App.tsx wraps them with <Shared> (which also returns <RoleShell>) → two DashboardLayout instances side by side. Webdev debug confirmed (confidence high).
+
+Chosen fix approach: remove page-level RoleShell wrappers from all pages; keep Shared wrapper in App.tsx as the single layout source.
+
+Progress so far:
+- [x] AlertsPage.tsx — removed RoleShell import/wrapper (uses useRole from RoleShell still)
+- [ ] DashboardHost.tsx (line 86/234)
+- [ ] DashboardPublic.tsx (line 56/387)
+- [ ] EmergencyPage.tsx (line 137/460)
+- [ ] HospitalEmergencies.tsx (line 69/240)
+- [ ] MapPage.tsx (line 272/414) — already unwrapped in App.tsx (/map route); remove internal RoleShell, keep demoMode? RoleShell demoMode default true. Shared has demoMode prop — /map could use Shared wrapper instead (simpler: just remove RoleShell from MapPage, App.tsx /map already mounts MapPage directly... but then no demo banner. Option: re-wrap /map with <Shared> in App.tsx after removing MapPage's RoleShell.)
+- [ ] ProfilePage.tsx (line 72/205)
+- [ ] RequestsPage.tsx (line 91/263)
+- [ ] RouteSearch.tsx (line 80/344)
+- [ ] EntitiesPage (AdminPage.tsx) — imported into App.tsx, check if it wraps RoleShell (it does NOT self-wrap; AdminPage hosts EntitiesPage directly; dashboard/admin routes use Shared already — fine, no change)
+
+Notes: MapPage.tsx internal: <RoleShell demoMode><div grid>...; remove wrapper and use <Shared> in App.tsx.
+RoleShell.tsx also exports useRole (keep import { useRole } from "@/" intact).
+ThemeToggle + HeroTrafficViz + Home updates + /map App.tsx double-wrap fix all done earlier; typecheck/tsc ok; 17/17 tests.
+Pending after refactor: verify /dashboard /alerts /map single sidebar screenshots, light mode check, checkpoint.
