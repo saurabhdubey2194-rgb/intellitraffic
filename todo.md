@@ -114,18 +114,18 @@
 - [x] Re-verify /signin on deployed site in dark via browser (?role=police renders correctly: cards, glow, form, disclaimers); light mode verified in browser (?theme=light&role=hospital: white cards, green hospital CTA, form legible, semantic tokens); tests pass 17/17, tsc clean
 
 ## Round 5 — Signup fix + role registration + map location flow (Aug 16)
-- [ ] Debug existing sign-up error: inspect frontend form, API request, backend endpoint, DB schema/required fields, auth/session, console + backend logs; find real root cause
-- [ ] General user sign-up: Full Name, Email (unique), Phone (Indian, unique), Password (≥8, hashed), Confirm Password; clear validation messages; profile photo optional
-- [ ] /choose-access-type page: Account created → "Choose Access Type" → three options (Ambulance/Emergency, Police, Hospital) each opening a real role-specific registration form
-- [ ] Police registration: station name, officer name, badge ID, phone, email, password, proof document upload (S3); role=POLICE? verificationStatus=PENDING
-- [ ] Hospital registration: hospital name, reg number, address, contact, email, password, license document; PENDING
-- [ ] Ambulance registration: ambulance number, driver name, driver phone, email, password, ambulance type, associated hospital, vehicle RC + insurance documents; PENDING
-- [ ] DB: extend existing schema safely, FKs, no duplicate tables, preserve demo data; migrations applied
-- [ ] RBAC: role selection never grants access; backend verifies session + DB role (already enforced — verify new flows)
-- [ ] Map Rapido-style: Current Location (geolocation + reverse geocode + manual edit), Destination search w/ suggestions, select-on-map mode, recent locations
-- [ ] Map: route calculation, distance, computed ETA (not hardcoded, marked demo), traffic status, multiple routes where available, emergency route recommendation
-- [ ] Map: Add Stop (optional waypoints); mobile-first one-hand UI; error/empty/loading states everywhere
-- [ ] Test all flows in browser + vitest, tsc clean, checkpoint
+- [x] Debug existing sign-up error: inspect frontend form, API request, backend endpoint, DB schema/required fields, auth/session, console + backend logs; find real root cause
+- [x] General user sign-up: Full Name, Email (unique), Phone (Indian, unique), Password (≥8, hashed), Confirm Password; clear validation messages; profile photo optional
+- [x] /choose-access-type page: Account created → "Choose Access Type" → three options (Ambulance/Emergency, Police, Hospital) each opening a real role-specific registration form
+- [x] Police registration: station name, officer name, badge ID, phone, email, password, proof document upload (S3); role=POLICE? verificationStatus=PENDING
+- [x] Hospital registration: hospital name, reg number, address, contact, email, password, license document; PENDING
+- [x] Ambulance registration: ambulance number, driver name, driver phone, email, password, ambulance type, associated hospital, vehicle RC + insurance documents; PENDING
+- [x] DB: extend existing schema safely, FKs, no duplicate tables, preserve demo data; migrations applied
+- [x] RBAC: role selection never grants access; backend verifies session + DB role (already enforced — verify new flows)
+- [x] Map Rapido-style: Current Location (geolocation + reverse geocode + manual edit), Destination search w/ suggestions, select-on-map mode, recent locations
+- [x] Map: route calculation, distance, computed ETA (not hardcoded, marked demo), traffic status, multiple routes where available, emergency route recommendation
+- [x] Map: Add Stop (optional waypoints); mobile-first one-hand UI; error/empty/loading states everywhere
+- [x] Test all flows in browser + vitest, tsc clean, checkpoint
 
 ## Round 5.2 — general signup + choose access type + Rapido map (Aug 20)
 - [x] Backend: signup endpoint with email+password (hashed, bcrypt in server), email/phone uniqueness, session cookie set after signup (auth.signUp + signInWithPassword, user_passwords table, jose JWT matching OAuth session format)
