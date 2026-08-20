@@ -112,3 +112,30 @@
 - [x] Sign-in form as real OAuth handoff: validate format per role (registration/station/hospital ID patterns, email/phone check), persist it.pendingRole/it.pendingId to localStorage, show entered ID on the sign-in button, validation errors in role=alert box, removed fake "Forgot password" link (OAuth-only auth, "Secured sign-in • no password stored")
 - [x] Radiogroup keyboard navigation on role cards: ArrowRight/ArrowLeft/ArrowUp/ArrowDown/Home/End move focus and select, Enter/Space activate (native button behavior); roving tabIndex, refs per card
 - [x] Re-verify /signin on deployed site in dark via browser (?role=police renders correctly: cards, glow, form, disclaimers); light mode verified in browser (?theme=light&role=hospital: white cards, green hospital CTA, form legible, semantic tokens); tests pass 17/17, tsc clean
+
+## Round 5 — Signup fix + role registration + map location flow (Aug 16)
+- [ ] Debug existing sign-up error: inspect frontend form, API request, backend endpoint, DB schema/required fields, auth/session, console + backend logs; find real root cause
+- [ ] General user sign-up: Full Name, Email (unique), Phone (Indian, unique), Password (≥8, hashed), Confirm Password; clear validation messages; profile photo optional
+- [ ] /choose-access-type page: Account created → "Choose Access Type" → three options (Ambulance/Emergency, Police, Hospital) each opening a real role-specific registration form
+- [ ] Police registration: station name, officer name, badge ID, phone, email, password, proof document upload (S3); role=POLICE? verificationStatus=PENDING
+- [ ] Hospital registration: hospital name, reg number, address, contact, email, password, license document; PENDING
+- [ ] Ambulance registration: ambulance number, driver name, driver phone, email, password, ambulance type, associated hospital, vehicle RC + insurance documents; PENDING
+- [ ] DB: extend existing schema safely, FKs, no duplicate tables, preserve demo data; migrations applied
+- [ ] RBAC: role selection never grants access; backend verifies session + DB role (already enforced — verify new flows)
+- [ ] Map Rapido-style: Current Location (geolocation + reverse geocode + manual edit), Destination search w/ suggestions, select-on-map mode, recent locations
+- [ ] Map: route calculation, distance, computed ETA (not hardcoded, marked demo), traffic status, multiple routes where available, emergency route recommendation
+- [ ] Map: Add Stop (optional waypoints); mobile-first one-hand UI; error/empty/loading states everywhere
+- [ ] Test all flows in browser + vitest, tsc clean, checkpoint
+
+## Round 5.2 — general signup + choose access type + Rapido map (Aug 20)
+- [x] Backend: signup endpoint with email+password (hashed, bcrypt in server), email/phone uniqueness, session cookie set after signup (auth.signUp + signInWithPassword, user_passwords table, jose JWT matching OAuth session format)
+- [x] Public /signup page: Full Name, Email, Phone (Indian validation), Password (≥8), Confirm Password, clear validation messages, availability badges
+- [x] /choose-access-type page with three real options: Ambulance/Emergency, Police, Hospital — each opens its role registration form with real document uploads + pending verification state
+- [x] Public signup success → redirect to /choose-access-type (not dashboard)
+- [x] Signed-in public users can start role registration from Profile or /choose-access-type
+- [x] Map Rapido flow (RoutePlannerPanel on /map): current location via geolocation + reverse geocode + manual edit + "use my location" button — flow verified in browser (sandbox blocks the maps/geolocation network, so geolocation was mock-verified; real devices get live GPS + reverse geocoding)
+- [x] Destination search with places autocomplete suggestions (fetchFields), select destination, distinct origin/destination markers
+- [x] Select on Map mode (tap to set destination) + Add Stop waypoints support
+- [x] Recent locations stored in localStorage with tap-to-fill (RECENT row + Quick picks)
+- [x] Route overview: routes.calculate, distance + computed ETA + traffic level (marked demo), 3 route alternatives with AI Recommended badge
+- [x] Tests 19/19 vitest passing + tsc clean + browser verification (dark), checkpoint

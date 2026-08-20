@@ -24,7 +24,7 @@ import {
   Timer,
   Waves,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -46,19 +46,79 @@ const STATUS_FLOW: Record<string, string[]> = {
   completed: ["submitted", "approved", "corridor_active", "in_transit", "arrived", "completed"],
 };
 
+type MapRouteHandoff = {
+  originLat: number;
+  originLng: number;
+  originAddress: string;
+  destinationLat: number;
+  destinationLng: number;
+  destinationAddress: string;
+  stops: { lat: number; lng: number; address: string }[];
+} | null;
+
+function readMapHandoff(): MapRouteHandoff {
+  try {
+    const raw = localStorage.getItem("it.emergencyRoute");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed?.originLat === "number" &&
+      typeof parsed?.destinationLat === "number"
+    )
+      return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default function EmergencyPage() {
+  const [handoff, setHandoff] = useState<MapRouteHandoff>(() => readMapHandoff());
   const [condition, setCondition] = useState("");
   const [priority, setPriority] = useState<string>("critical");
   const [hospitalId, setHospitalId] = useState<number | null>(null);
   const [progressPct, setProgressPct] = useState(0);
   const [, setLocation] = useLocation();
 
-  // Hospitals via nearby query at city centre
+  // If the map panel handed off a route, pre-fill the nearest destination
+  // hospital (by haversine distance to the handoff destination point).
+  const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  // Hospitals via nearby query centred on the handoff destination when present
+  const anchor = handoff ? { lat: handoff.destinationLat, lng: handoff.destinationLng } : KANPUR_CENTER;
   const nearby = trpc.traffic.nearby.useQuery(
-    { lat: KANPUR_CENTER.lat, lng: KANPUR_CENTER.lng, radiusKm: 12 },
+    { lat: anchor.lat, lng: anchor.lng, radiusKm: 12 },
     { retry: 1 }
   );
   const hospitalList = nearby.data?.hospitals ?? [];
+
+  useEffect(() => {
+    if (handoff && hospitalId == null && hospitalList.length > 0) {
+      const nearest = hospitalList
+        .filter(h => h.lat != null && h.lng != null)
+        .sort((a, b) =>
+          haversineKm(handoff.destinationLat, handoff.destinationLng, a.lat!, a.lng!) -
+          haversineKm(handoff.destinationLat, handoff.destinationLng, b.lat!, b.lng!),
+        )[0];
+      if (nearest) setHospitalId(nearest.id);
+    }
+  }, [handoff, hospitalList.length]);
+
+  useEffect(() => {
+    if (handoff) {
+      localStorage.removeItem("it.emergencyRoute");
+    }
+  }, []);
 
   const utils = trpc.useUtils();
   const create = trpc.emergencies.create.useMutation({
@@ -336,6 +396,28 @@ export default function EmergencyPage() {
               Select a destination hospital. Police will verify before the corridor is
               activated.
             </CardDescription>
+            {handoff && (
+              <div className="rounded-lg bg-sky-500/10 border border-sky-400/25 px-3 py-2 text-[11px] text-sky-200 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <Crosshair className="h-3.5 w-3.5 shrink-0" />
+                  Route carried over from the map planner
+                </p>
+                <p className="truncate">From: {handoff.originAddress}</p>
+                <p className="truncate">To: {handoff.destinationAddress}</p>
+                {handoff.stops.length > 0 && (
+                  <p>
+                    Stops: {handoff.stops.map(s => s.address).join(" · ")}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setHandoff(null)}
+                  className="text-[10px] text-sky-300/80 underline underline-offset-2"
+                >
+                  Dismiss handoff
+                </button>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-3">
             {nearby.isLoading ? (
@@ -403,8 +485,8 @@ export default function EmergencyPage() {
                   hospitalId,
                   patientCondition: condition || undefined,
                   priority: priority as "high" | "critical" | "extreme",
-                  fromLat: KANPUR_CENTER.lat,
-                  fromLng: KANPUR_CENTER.lng,
+                  fromLat: handoff?.originLat ?? KANPUR_CENTER.lat,
+                  fromLng: handoff?.originLng ?? KANPUR_CENTER.lng,
                 })
               }
             >

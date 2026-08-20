@@ -27,8 +27,12 @@ import {
   ambulanceDocuments,
   signalEvents,
   activityLogs,
+  userPasswords,
 } from "../drizzle/schema";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { ENV } from "./_core/env";
+import { SignJWT } from "jose";
+import { ONE_YEAR_MS } from "@shared/const";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { audit } from "./audit";
@@ -94,13 +98,32 @@ const historyRouter = router({
 const ambulanceRouter = router({
   documents: ambulanceProcedure.query(async ({ ctx }) => {
     const ambulance = await q.getAmbulanceByUserId(ctx.user.id);
-    if (!ambulance) return [];
-    const docs = await q.listAmbulanceDocuments(ambulance.id);
+    const docs = ambulance ? await q.listAmbulanceDocuments(ambulance.id) : [];
     return docs.map(d => ({
       ...d,
       url: d.url ?? null,
     }));
   }),
+  entityDocs: protectedProcedure
+    .input(z.object({ entityType: z.enum(["AMBULANCE", "HOSPITAL", "POLICE", "USER"]) }))
+    .query(async ({ ctx, input }) => {
+      const db = await requireDb();
+      const entity =
+        input.entityType === "AMBULANCE"
+          ? await q.getAmbulanceByUserId(ctx.user.id)
+          : input.entityType === "HOSPITAL"
+            ? await q.getHospitalByUserId(ctx.user.id)
+            : await q.getPoliceStationByUserId(ctx.user.id);
+      if (!entity) return [];
+      const docs = await db
+        .select()
+        .from(ambulanceDocuments)
+        .where(eq(ambulanceDocuments.entityId, String(entity.id)));
+      return docs.map(d => ({
+        ...d,
+        url: d.url ?? null,
+      }));
+    }),
   uploadDocument: ambulanceProcedure
     .input(
       z.object({
@@ -163,7 +186,7 @@ const ambulanceRouter = router({
         .update(ambulanceDocuments)
         .set({ status: input.status, note: input.note ?? null })
         .where(eq(ambulanceDocuments.id, input.docId));
-      const ambulance = await q.getAmbulanceById(doc.ambulanceId);
+      const ambulance = doc.ambulanceId ? await q.getAmbulanceById(doc.ambulanceId) : undefined;
       if (ambulance) {
         await db.insert(notifications).values({
           userId: ambulance.userId,
@@ -195,7 +218,7 @@ const ambulanceRouter = router({
       .where(eq(ambulanceDocuments.status, "pending_review"));
     const out = [];
     for (const d of docs) {
-      const ambulance = await q.getAmbulanceById(d.ambulanceId);
+      const ambulance = d.ambulanceId ? await q.getAmbulanceById(d.ambulanceId) : undefined;
       out.push({ ...d, ambulance });
     }
     return out;
@@ -292,19 +315,171 @@ export const appRouter = router({
       const police = await q.getPoliceStationByUserId(ctx.user.id);
       return { user, ambulance, hospital, police };
     }),
-    updateProfile: verifiedProcedure
+    checkAvailability: publicProcedure
       .input(
         z.object({
-          name: z.string().min(1).max(200).optional(),
+          email: z.string().email().optional(),
           phone: z.string().max(32).optional(),
+        })
+      )
+      .query(async ({ input }) => {
+        const db = await requireDb();
+        const checks: { emailAvailable?: boolean; phoneAvailable?: boolean } = {};
+        if (input.email) {
+          const existing = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+          checks.emailAvailable = existing.length === 0;
+        }
+        if (input.phone) {
+          const existing = await db.select().from(users).where(eq(users.phone, input.phone)).limit(1);
+          checks.phoneAvailable = existing.length === 0;
+        }
+        return checks;
+      }),
+    /**
+     * Traditional email/password sign-up. Creates the user record, stores a
+     * bcrypt-hashed password in user_passwords, and issues the same JWT session
+     * cookie as the OAuth flow so the rest of the platform (authenticateRequest)
+     * resolves this user identically. Role stays "public" until the user picks
+     * an access type and completes role registration (pending verification).
+     */
+    signUp: publicProcedure
+      .input(
+        z.object({
+          name: z.string().min(2).max(200),
+          email: z.string().email().max(320),
+          phone: z.string().min(10).max(16),
+          password: z.string().min(8).max(128),
           city: z.string().max(128).optional(),
           district: z.string().max(128).optional(),
           state: z.string().max(128).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
-        await audit(ctx, "UpdateProfile", "user", String(ctx.user.id));
         const db = await requireDb();
+        const email = input.email.trim().toLowerCase();
+        const phone = input.phone.trim();
+        const emailTaken = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.email, email))
+          .limit(1);
+        if (emailTaken.length > 0)
+          throw new TRPCError({ code: "CONFLICT", message: "This email is already registered. Please use another email address." });
+        const phoneTaken = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.phone, phone))
+          .limit(1);
+        if (phoneTaken.length > 0)
+          throw new TRPCError({ code: "CONFLICT", message: "This phone number is already registered. Please use another phone number." });
+        const emailPassword = await db
+          .select({ id: userPasswords.id })
+          .from(userPasswords)
+          .where(eq(userPasswords.email, email))
+          .limit(1);
+        if (emailPassword.length > 0)
+          throw new TRPCError({ code: "CONFLICT", message: "This email is already registered. Please use another email address." });
+        // bcryptjs ≥3 uses sync hashing with a random salt by default (10 rounds).
+        const { hashSync } = await import("bcryptjs");
+        const passwordHash = hashSync(input.password, 10);
+        // Synthetic openId: prefixed so admin/OAuth tooling can distinguish it.
+        const openId = `pw_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+        await db.insert(users).values({
+          openId,
+          name: input.name.trim(),
+          email,
+          loginMethod: "password",
+          role: "public",
+          phone,
+          city: input.city ?? null,
+          district: input.district ?? null,
+          state: input.state ?? null,
+          lastSignedIn: new Date(),
+        });
+        const created = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+        const user = created[0];
+        if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create user" });
+        await db.insert(userPasswords).values({ email, openId, passwordHash });
+        await audit(ctx, "SignUp", "user", String(user.id));
+        await logActivity({
+          userId: user.id,
+          userRole: user.role,
+          userName: user.name,
+          userEmail: user.email,
+          actionType: "USER_REGISTRATION",
+          actionDescription: `${user.name ?? "User"} signed up on IntelliTraffic with email and password`,
+          entityType: "USER",
+          entityId: String(user.id),
+          status: "SUCCESS",
+        });
+        // Issue the platform-compatible JWT session cookie.
+        const secret = new TextEncoder().encode(ENV.cookieSecret);
+        const expirationSeconds = Math.floor((Date.now() + ONE_YEAR_MS) / 1000);
+        const sessionToken = await new SignJWT({ openId, appId: ENV.appId, name: user.name ?? "" })
+          .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+          .setExpirationTime(expirationSeconds)
+          .sign(secret);
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        return { success: true, userId: user.id } as const;
+      }),
+    /** Email/password sign-in for users created via signUp. */
+    signInWithPassword: publicProcedure
+      .input(
+        z.object({
+          email: z.string().email().max(320),
+          password: z.string().min(1).max(128),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const db = await requireDb();
+        const email = input.email.trim().toLowerCase();
+        const cred = await db
+          .select()
+          .from(userPasswords)
+          .where(eq(userPasswords.email, email))
+          .limit(1);
+        const user = cred[0] ? await q.getUserByOpenId(cred[0].openId) : undefined;
+        if (!user || !cred[0])
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password." });
+        const { compareSync } = await import("bcryptjs");
+        if (!compareSync(input.password, cred[0].passwordHash))
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid email or password." });
+        const secret = new TextEncoder().encode(ENV.cookieSecret);
+        const expirationSeconds = Math.floor((Date.now() + ONE_YEAR_MS) / 1000);
+        const sessionToken = await new SignJWT({ openId: user.openId, appId: ENV.appId, name: user.name ?? "" })
+          .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+          .setExpirationTime(expirationSeconds)
+          .sign(secret);
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, user.id));
+        return { success: true, userId: user.id, role: user.role } as const;
+      }),
+    updateProfile: verifiedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1).max(200).optional(),
+          phone: z.string().max(32).optional(),
+          email: z.string().email().max(320).optional(),
+          city: z.string().max(128).optional(),
+          district: z.string().max(128).optional(),
+          state: z.string().max(128).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const db = await requireDb();
+        if (input.email) {
+          const existing = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+          if (existing.length > 0 && existing[0].id !== ctx.user.id)
+            throw new TRPCError({ code: "CONFLICT", message: "This email is already registered" });
+        }
+        if (input.phone) {
+          const existing = await db.select().from(users).where(eq(users.phone, input.phone)).limit(1);
+          if (existing.length > 0 && existing[0].id !== ctx.user.id)
+            throw new TRPCError({ code: "CONFLICT", message: "This phone number is already registered" });
+        }
+        await audit(ctx, "UpdateProfile", "user", String(ctx.user.id));
         await db.update(users).set(input).where(eq(users.id, ctx.user.id));
         await logActivity({
           userId: ctx.user.id,
@@ -334,23 +509,48 @@ export const appRouter = router({
               hospitalAssociation: z.string().max(200).optional(),
               hospitalId: z.number().optional(),
               operatingDistrict: z.string().max(128).optional(),
+              ambulanceType: z.enum(["basic", "advanced", "transport", "emergency_response", "other"]).optional(),
+              docs: z
+                .array(
+                  z.object({
+                    docType: z.enum(["rc", "ambulance_permit", "driver_license", "insurance", "hospital_authorization"]),
+                    fileName: z.string().max(300),
+                    base64: z.string().max(12_000_000),
+                    mimeType: z.string().max(128),
+                    sizeBytes: z.number(),
+                  })
+                )
+                .max(6)
+                .optional(),
             })
             .optional(),
           hospital: z
             .object({
               hospitalName: z.string().min(1).max(200),
               registrationNumber: z.string().max(64).optional(),
+              contactName: z.string().max(200).optional(),
+              contactNumber: z.string().max(32).optional(),
               emergencyContact: z.string().max(32).optional(),
               address: z.string().max(500).optional(),
               district: z.string().max(128).optional(),
               state: z.string().max(128).optional(),
               lat: z.number().optional(),
               lng: z.number().optional(),
+              doc: z
+                .object({
+                  docType: z.enum(["hospital_license", "hospital_registration"]),
+                  fileName: z.string().max(300),
+                  base64: z.string().max(12_000_000),
+                  mimeType: z.string().max(128),
+                  sizeBytes: z.number(),
+                })
+                .optional(),
             })
             .optional(),
           police: z
             .object({
               stationName: z.string().min(1).max(200),
+              officerName: z.string().min(1).max(200),
               officerId: z.string().max(64).optional(),
               designation: z.string().max(128).optional(),
               district: z.string().max(128).optional(),
@@ -358,6 +558,15 @@ export const appRouter = router({
               area: z.string().max(128).optional(),
               lat: z.number().optional(),
               lng: z.number().optional(),
+              doc: z
+                .object({
+                  docType: z.enum(["police_id_card", "police_authorization"]),
+                  fileName: z.string().max(300),
+                  base64: z.string().max(12_000_000),
+                  mimeType: z.string().max(128),
+                  sizeBytes: z.number(),
+                })
+                .optional(),
             })
             .optional(),
         })
@@ -390,7 +599,33 @@ export const appRouter = router({
             hospitalAssociation: input.ambulance.hospitalAssociation ?? null,
             hospitalId: input.ambulance.hospitalId ?? null,
             operatingDistrict: input.ambulance.operatingDistrict ?? null,
+            ambulanceType: input.ambulance.ambulanceType ?? null,
           });
+          const newAmbulance = await q.getAmbulanceByUserId(ctx.user.id);
+          if (input.ambulance.docs?.length && newAmbulance) {
+            const allowedTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/jpg"]);
+            for (const doc of input.ambulance.docs) {
+              if (doc.sizeBytes > 8 * 1024 * 1024)
+                throw new TRPCError({ code: "BAD_REQUEST", message: "File too large — max 8MB per document" });
+              if (!allowedTypes.has(doc.mimeType))
+                throw new TRPCError({ code: "BAD_REQUEST", message: "Only PDF, JPG or PNG files are accepted" });
+              const buffer = Buffer.from(doc.base64, "base64");
+              const relKey = `ambulance-docs/${newAmbulance.id}/${Date.now()}-${doc.fileName}`;
+              const upload = await storagePut(relKey, buffer, doc.mimeType);
+              await db.insert(ambulanceDocuments).values({
+                ambulanceId: newAmbulance.id,
+                entityType: "AMBULANCE",
+                entityId: String(newAmbulance.id),
+                docType: doc.docType,
+                fileName: doc.fileName,
+                mimeType: doc.mimeType,
+                sizeBytes: buffer.length,
+                storageKey: upload.key,
+                url: upload.url,
+                status: "pending_review",
+              });
+            }
+          }
           await audit(ctx, "RegisteredAmbulance", "ambulance", String(ctx.user.id));
           await logActivity({
             userId: ctx.user.id,
@@ -411,12 +646,37 @@ export const appRouter = router({
             name: input.hospital.hospitalName,
             registrationNumber: input.hospital.registrationNumber ?? null,
             emergencyContact: input.hospital.emergencyContact ?? null,
+            contactName: input.hospital.contactName ?? null,
+            contactNumber: input.hospital.contactNumber ?? null,
             address: input.hospital.address ?? null,
             district: input.hospital.district ?? null,
             state: input.hospital.state ?? null,
             lat: input.hospital.lat ?? null,
             lng: input.hospital.lng ?? null,
           });
+          const newHospital = await q.getHospitalByUserId(ctx.user.id);
+          if (input.hospital.doc && newHospital) {
+            const allowedTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/jpg"]);
+            if (input.hospital.doc.sizeBytes > 8 * 1024 * 1024)
+              throw new TRPCError({ code: "BAD_REQUEST", message: "File too large — max 8MB" });
+            if (!allowedTypes.has(input.hospital.doc.mimeType))
+              throw new TRPCError({ code: "BAD_REQUEST", message: "Only PDF, JPG or PNG files are accepted" });
+            const buffer = Buffer.from(input.hospital.doc.base64, "base64");
+            const relKey = `hospital-docs/${newHospital.id}/${Date.now()}-${input.hospital.doc.fileName}`;
+            const upload = await storagePut(relKey, buffer, input.hospital.doc.mimeType);
+            await db.insert(ambulanceDocuments).values({
+              ambulanceId: null,
+              entityType: "HOSPITAL",
+              entityId: String(newHospital.id),
+              docType: input.hospital.doc.docType,
+              fileName: input.hospital.doc.fileName,
+              mimeType: input.hospital.doc.mimeType,
+              sizeBytes: buffer.length,
+              storageKey: upload.key,
+              url: upload.url,
+              status: "pending_review",
+            });
+          }
           await audit(ctx, "RegisteredHospital", "hospital", String(ctx.user.id));
           await logActivity({
             userId: ctx.user.id,
@@ -435,6 +695,7 @@ export const appRouter = router({
           await db.insert(policeStations).values({
             userId: ctx.user.id,
             name: input.police.stationName,
+            officerName: input.police.officerName ?? null,
             officerId: input.police.officerId ?? null,
             designation: input.police.designation ?? null,
             district: input.police.district ?? null,
@@ -443,6 +704,29 @@ export const appRouter = router({
             lat: input.police.lat ?? null,
             lng: input.police.lng ?? null,
           });
+          const newPolice = await q.getPoliceStationByUserId(ctx.user.id);
+          if (input.police.doc && newPolice) {
+            const allowedTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/jpg"]);
+            if (input.police.doc.sizeBytes > 8 * 1024 * 1024)
+              throw new TRPCError({ code: "BAD_REQUEST", message: "File too large — max 8MB" });
+            if (!allowedTypes.has(input.police.doc.mimeType))
+              throw new TRPCError({ code: "BAD_REQUEST", message: "Only PDF, JPG or PNG files are accepted" });
+            const buffer = Buffer.from(input.police.doc.base64, "base64");
+            const relKey = `police-docs/${newPolice.id}/${Date.now()}-${input.police.doc.fileName}`;
+            const upload = await storagePut(relKey, buffer, input.police.doc.mimeType);
+            await db.insert(ambulanceDocuments).values({
+              ambulanceId: null,
+              entityType: "POLICE",
+              entityId: String(newPolice.id),
+              docType: input.police.doc.docType,
+              fileName: input.police.doc.fileName,
+              mimeType: input.police.doc.mimeType,
+              sizeBytes: buffer.length,
+              storageKey: upload.key,
+              url: upload.url,
+              status: "pending_review",
+            });
+          }
           await audit(ctx, "RegisteredPoliceStation", "police", String(ctx.user.id));
           await logActivity({
             userId: ctx.user.id,

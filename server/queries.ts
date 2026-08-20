@@ -68,6 +68,12 @@ export async function listUsers(filters?: {
   return { rows, total: Number(count) };
 }
 
+export async function getUserByOpenId(openId: string) {
+  const db = await requireDb();
+  const res = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  return res[0];
+}
+
 export async function getUserById(id: number) {
   const db = await requireDb();
   const res = await db.select().from(users).where(eq(users.id, id)).limit(1);

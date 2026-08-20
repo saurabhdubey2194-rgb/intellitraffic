@@ -29,6 +29,9 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { startLogin } from "@/const";
+import { useLocation } from "wouter";
+import { useRole } from "@/components/RoleShell";
+import { AlertCircle, Ambulance, ArrowRight, Hospital, Siren, TrafficCone } from "lucide-react";
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
@@ -109,6 +112,30 @@ export default function ProfilePage() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Public user CTA: apply for a verified role */}
+        {useRole(u) === "public" && (
+          <Card className="border-amber-400/25 bg-amber-500/5">
+            <CardContent className="pt-5 pb-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold">Get a verified role</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Apply as an Ambulance Driver, Police Officer or Hospital Staff to
+                    unlock emergency corridors, verification queues and role
+                    dashboards. Applications are reviewed by a host admin.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                    <ChooseRoleButton icon={Ambulance} label="Ambulance" />
+                    <ChooseRoleButton icon={TrafficCone} label="Police" />
+                    <ChooseRoleButton icon={Hospital} label="Hospital" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Role-specific card */}
         {profile.isLoading ? (
@@ -264,5 +291,24 @@ function TrustBar({ score }: { score: number }) {
         />
       </div>
     </div>
+  );
+}
+
+/** Public-user shortcut: jump to /choose-access-type pre-selecting a role. */
+function ChooseRoleButton({ icon: Icon, label }: { icon: typeof Ambulance; label: string }) {
+  const [, navigate] = useLocation();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        localStorage.setItem("it.pendingRole", label.toLowerCase());
+        navigate("/choose-access-type");
+      }}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:border-emerald-400/40 hover:text-emerald-300 transition-colors active:scale-[0.97]"
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {label}
+      <ArrowRight className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+    </button>
   );
 }

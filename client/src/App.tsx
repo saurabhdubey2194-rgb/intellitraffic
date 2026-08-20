@@ -6,6 +6,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import SignInPage from "./pages/SignInPage";
+import SignUpPage from "./pages/SignUpPage";
+import ChooseAccessType from "./pages/ChooseAccessType";
 
 // Dashboards
 
@@ -54,6 +56,8 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/signin"} component={SignInPage} />
+      <Route path={"/signup"} component={SignUpPage} />
+      <Route path={"/choose-access-type"} component={ChooseAccessType} />
       {/* Public / shared */}
       <Route path={"/map"}>
         <Shared>

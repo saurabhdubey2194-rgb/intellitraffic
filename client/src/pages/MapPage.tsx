@@ -31,6 +31,9 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { MapView } from "@/components/Map";
 import { KANPUR_CENTER } from "@shared/intellitraffic";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { useRole } from "@/components/RoleShell";
+import RoutePlannerPanel from "@/components/RoutePlannerPanel";
 
 type LayerKey =
   | "traffic"
@@ -267,6 +270,8 @@ export default function MapPage() {
   }, [enabled, signalRows.length, incidentRows.length, hospitalRows.length, policeRows.length, corridors.data, segments.data]);
 
   const loading = traffic.isLoading || incidents.isLoading;
+  const { user } = useAuth();
+  const isAmbulance = useRole(user) === "ambulance";
 
   return (
       <>
@@ -301,6 +306,7 @@ export default function MapPage() {
 
         {/* Map */}
         <div className="rounded-2xl overflow-hidden border border-white/10 relative min-h-[420px] lg:min-h-[620px]">
+          <RoutePlannerPanel mapRef={mapRef} isAmbulance={isAmbulance} markersRef={markersRef} />
           {loading ? (
             <div className="absolute inset-0 bg-card flex items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-emerald-300" />

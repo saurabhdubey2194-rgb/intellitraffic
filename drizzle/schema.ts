@@ -82,6 +82,7 @@ export const ambulances = mysqlTable("ambulances", {
   hospitalAssociation: varchar("hospitalAssociation", { length: 200 }),
   hospitalId: int("hospitalId"),
   operatingDistrict: varchar("operatingDistrict", { length: 128 }),
+  ambulanceType: varchar("ambulanceType", { length: 64 }),
   trustScore: int("trustScore").default(100),
   totalRequests: int("totalRequests").default(0),
   verifiedRequests: int("verifiedRequests").default(0),
@@ -98,6 +99,8 @@ export const hospitals = mysqlTable("hospitals", {
   name: varchar("name", { length: 200 }).notNull(),
   userId: int("userId"),
   registrationNumber: varchar("registrationNumber", { length: 64 }),
+  contactName: varchar("contactName", { length: 200 }),
+  contactNumber: varchar("contactNumber", { length: 32 }),
   emergencyContact: varchar("emergencyContact", { length: 32 }),
   address: text("address"),
   district: varchar("district", { length: 128 }),
@@ -115,6 +118,7 @@ export const policeStations = mysqlTable("policeStations", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 200 }).notNull(),
   userId: int("userId"),
+  officerName: varchar("officerName", { length: 200 }),
   officerId: varchar("officerId", { length: 64 }),
   designation: varchar("designation", { length: 128 }),
   district: varchar("district", { length: 128 }),
@@ -347,13 +351,19 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 
 export const ambulanceDocuments = mysqlTable("ambulance_documents", {
   id: int("id").autoincrement().primaryKey(),
-  ambulanceId: int("ambulanceId").notNull(),
+  ambulanceId: int("ambulanceId"),
+  entityType: mysqlEnum("entityType", ["AMBULANCE", "HOSPITAL", "POLICE", "USER"]).default("AMBULANCE").notNull(),
+  entityId: varchar("entityId", { length: 64 }),
   docType: mysqlEnum("docType", [
     "rc",
     "ambulance_permit",
     "driver_license",
     "insurance",
     "hospital_authorization",
+    "hospital_license",
+    "hospital_registration",
+    "police_id_card",
+    "police_authorization",
   ]).notNull(),
   fileName: varchar("fileName", { length: 300 }).notNull(),
   mimeType: varchar("mimeType", { length: 128 }),
@@ -367,6 +377,23 @@ export const ambulanceDocuments = mysqlTable("ambulance_documents", {
 });
 
 export type AmbulanceDocument = typeof ambulanceDocuments.$inferSelect;
+
+// ---------- Password-based authentication (email/password signup) ----------
+// Session management is still the platform JWT cookie; this table stores the
+// password credential + a stable openId so the existing authenticateRequest
+// pipeline resolves the user from a password login exactly like OAuth.
+
+export const userPasswords = mysqlTable("user_passwords", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  // Synthetic openId that the JWT/session layer treats like any other login.
+  openId: varchar("openId", { length: 64 }).notNull().unique(),
+  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+  createdAt: datetime("createdAt").default(new Date()).notNull(),
+  updatedAt: datetime("updatedAt").default(new Date()).notNull(),
+});
+
+export type UserPassword = typeof userPasswords.$inferSelect;
 
 export const signalEvents = mysqlTable("signal_events", {
   id: int("id").autoincrement().primaryKey(),
