@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { useAnalysisEvents } from "@/hooks/useAnalysisEvents";
 
 export default function AnalysisDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -59,6 +60,28 @@ export default function AnalysisDetailPage() {
 
   const isCompleted = job.status === "completed";
   const isProcessing = ["queued", "preprocessing", "analyzing"].includes(job.status);
+  const lastEvent = useAnalysisEvents();
+  
+  // Update local job state if event matches this job
+  const [currentJob, setCurrentJob] = useState<any>(job);
+  
+  useEffect(() => {
+    if (lastEvent && lastEvent.jobId === jobId) {
+      setCurrentJob((prev: any) => ({
+        ...prev,
+        status: lastEvent.status,
+        progress: lastEvent.progress || prev?.progress,
+        message: lastEvent.message
+      }));
+      if (lastEvent.status === 'completed') {
+        refetchJob();
+      }
+    }
+  }, [lastEvent, jobId, refetchJob]);
+
+  useEffect(() => {
+    setCurrentJob(job);
+  }, [job]);
 
   return (
     <div className="space-y-8">
@@ -91,26 +114,55 @@ export default function AnalysisDetailPage() {
       </div>
 
       {isProcessing ? (
-        <Card className="border-blue-500/20 bg-blue-500/5">
-          <CardContent className="py-12 flex flex-col items-center justify-center text-center space-y-6">
-            <div className="relative">
-              <div className="h-24 w-24 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Shield className="h-8 w-8 text-blue-500" />
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card className="md:col-span-2 border-blue-500/20 bg-blue-500/5">
+            <CardContent className="py-12 flex flex-col items-center justify-center text-center space-y-6">
+              <div className="relative">
+                <div className="h-24 w-24 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Shield className="h-8 w-8 text-blue-500" />
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold capitalize">{job.status}...</h2>
-              <p className="text-muted-foreground max-w-md">
-                Our AI models are currently scanning the media for generative artifacts and digital inconsistencies.
-              </p>
-            </div>
-            <div className="w-full max-w-xs space-y-2">
-              <Progress value={job.status === 'queued' ? 20 : job.status === 'preprocessing' ? 45 : 75} className="h-2" />
-              <p className="text-[10px] uppercase tracking-widest font-bold text-blue-400">Analysis in Progress</p>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold capitalize">{currentJob.status}...</h2>
+                <p className="text-muted-foreground max-w-md">
+                  {currentJob.message || "Our AI models are currently scanning the media for generative artifacts and digital inconsistencies."}
+                </p>
+              </div>
+              <div className="w-full max-w-xs space-y-2">
+                <Progress value={currentJob.progress || (currentJob.status === 'queued' ? 10 : currentJob.status === 'preprocessing' ? 30 : 60)} className="h-2" />
+                <p className="text-[10px] uppercase tracking-widest font-bold text-blue-400">Live Analysis Timeline</p>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-border/40">
+            <CardHeader>
+              <CardTitle className="text-base">Analysis Pipeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <TimelineItem 
+                  label="Media Queued" 
+                  status={currentJob.status === 'queued' ? 'active' : 'completed'} 
+                  time={new Date(currentJob.createdAt).toLocaleTimeString()}
+                />
+                <TimelineItem 
+                  label="Preprocessing" 
+                  status={['queued'].includes(currentJob.status) ? 'pending' : currentJob.status === 'preprocessing' ? 'active' : 'completed'} 
+                />
+                <TimelineItem 
+                  label="Forensic Analysis" 
+                  status={['queued', 'preprocessing'].includes(currentJob.status) ? 'pending' : currentJob.status === 'analyzing' ? 'active' : 'completed'} 
+                />
+                <TimelineItem 
+                  label="Report Generation" 
+                  status={currentJob.status === 'completed' ? 'completed' : 'pending'} 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       ) : isCompleted && results ? (
         <div className="grid gap-6 md:grid-cols-3">
           {/* Main Results */}
@@ -179,10 +231,10 @@ export default function AnalysisDetailPage() {
                 <div className="aspect-video rounded-lg bg-muted flex items-center justify-center border border-border/40 mb-4">
                   <FileText className="h-8 w-8 text-muted-foreground opacity-20" />
                 </div>
-                <InfoRow label="File Name" value={job.media?.originalName || "N/A"} />
-                <InfoRow label="Type" value={job.media?.type?.toUpperCase() || "N/A"} />
-                <InfoRow label="Size" value={`${((job.media?.size || 0) / (1024 * 1024)).toFixed(2)} MB`} />
-                <InfoRow label="Created At" value={new Date(job.createdAt).toLocaleString()} />
+                <InfoRow label="File Name" value={currentJob.media?.originalName || "N/A"} />
+                <InfoRow label="Type" value={currentJob.media?.type?.toUpperCase() || "N/A"} />
+                <InfoRow label="Size" value={`${((currentJob.media?.size || 0) / (1024 * 1024)).toFixed(2)} MB`} />
+                <InfoRow label="Created At" value={new Date(currentJob.createdAt).toLocaleString()} />
               </CardContent>
             </Card>
 
@@ -213,6 +265,30 @@ export default function AnalysisDetailPage() {
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+function TimelineItem({ label, status, time }: { label: string, status: 'pending' | 'active' | 'completed', time?: string }) {
+  return (
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <div className={`h-6 w-6 rounded-full flex items-center justify-center border-2 ${
+          status === 'completed' ? 'bg-emerald-500 border-emerald-500 text-white' :
+          status === 'active' ? 'bg-blue-500 border-blue-500 text-white animate-pulse' :
+          'bg-muted border-muted-foreground/20 text-muted-foreground'
+        }`}>
+          {status === 'completed' ? <CheckCircle2 className="h-3 w-3" /> : 
+           status === 'active' ? <Loader2 className="h-3 w-3 animate-spin" /> : 
+           <div className="h-1.5 w-1.5 rounded-full bg-current" />}
+        </div>
+        <div className="w-0.5 h-full bg-border mt-1" />
+      </div>
+      <div className="pb-6">
+        <p className={`text-sm font-bold ${status === 'pending' ? 'text-muted-foreground' : 'text-foreground'}`}>{label}</p>
+        {time && <p className="text-[10px] text-muted-foreground">{time}</p>}
+        {status === 'active' && <p className="text-[10px] text-blue-500 font-medium">Processing...</p>}
+      </div>
     </div>
   );
 }

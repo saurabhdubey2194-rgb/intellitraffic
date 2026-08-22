@@ -147,6 +147,47 @@ export const caseEvidence = mysqlTable("fs_case_evidence", {
 });
 
 /**
+ * Real-time notifications for users.
+ */
+export const notifications = mysqlTable("fs_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  type: mysqlEnum("type", ["info", "success", "warning", "error"]).default("info").notNull(),
+  read: boolean("read").default(false).notNull(),
+  link: text("link"),
+  createdAt: datetime("createdAt").default(new Date()).notNull(),
+});
+
+/**
+ * External threat intelligence indicators.
+ */
+export const threatIndicators = mysqlTable("fs_threat_indicators", {
+  id: int("id").autoincrement().primaryKey(),
+  mediaId: int("mediaId").notNull(),
+  source: varchar("source", { length: 128 }).notNull(), // e.g., "VirusTotal", "Google Safe Browsing"
+  indicatorType: varchar("indicatorType", { length: 128 }).notNull(), // e.g., "malicious_url", "known_deepfake_hash"
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
+  details: text("details"),
+  createdAt: datetime("createdAt").default(new Date()).notNull(),
+});
+
+/**
+ * API usage tracking for admin monitoring.
+ */
+export const apiUsage = mysqlTable("fs_api_usage", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId"),
+  endpoint: varchar("endpoint", { length: 255 }).notNull(),
+  method: varchar("method", { length: 10 }).notNull(),
+  statusCode: int("statusCode"),
+  responseTime: int("responseTime"), // in ms
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  createdAt: datetime("createdAt").default(new Date()).notNull(),
+});
+
+/**
  * System audit logs for security and compliance.
  */
 export const auditLogs = mysqlTable("fs_audit_logs", {

@@ -29,3 +29,20 @@
 - [x] Design premium cybersecurity-themed landing page (Home.tsx)
 - [x] Implement PDF report generation for analysis results (server/reports.ts + generate_pdf.py + UI Integration)
 - [x] Final visual polish and responsive testing
+
+## Round 6: Production-Grade FakeShield AI
+- [x] Real-time Analysis: Implement SSE/WebSocket for live status updates (Queued -> Analyzing -> Evidence -> Done) (server/events.ts + useAnalysisEvents.ts)
+- [x] Infrastructure Fix: Resolve server syntax errors and auth router reference issues
+- [x] Real Stats: Replace hardcoded dashboard stats with live database aggregates (User/Investigator/Admin)
+- [x] Enhanced Uploads: Implement drag-and-drop and MIME validation (AnalyzePage.tsx)
+- [ ] Multi-modal Analyzer: Universal interface for Video, Image, Audio, Document, Text, URL, Social Media
+- [ ] Deepfake Video Detection: Frame-by-frame timeline, suspicious timestamps, facial consistency, lighting/shadow artifacts
+- [ ] AI Image Detection: Highlights for artifacts, hands/fingers, text rendering, pixel anomalies
+- [ ] Voice/Audio Deepfake Detection: Spectrogram, AI voice probability, pitch patterns, splicing indicators
+- [ ] Fake Message & Scam Detection: Phishing, scam language, financial fraud detection for text/chat
+- [ ] URL & Phishing Scanner: Domain structure, reputation, redirects, obfuscation detection
+- [ ] Explainable AI: Verdict + Confidence + Signal List + Evidence + Recommendations
+- [ ] Professional Reporting: Export JSON, Print Report, Share Report (in addition to PDF)
+- [ ] Real-time Notifications: Analysis completed, high-risk detection, security alerts
+- [ ] Admin Command Center: User management, model health, API usage, failed job review
+- [ ] Database Expansion: Models for Evidence, ThreatIndicators, APIUsage, Notifications, AuditLogs

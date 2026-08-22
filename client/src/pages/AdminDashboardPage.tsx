@@ -5,8 +5,8 @@ import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 
 export default function AdminDashboardPage() {
-  // In a real app, this would fetch system-wide stats
-  const { data: usersList } = trpc.auth.profile.useQuery(); // Placeholder
+  const { data: stats, isLoading: statsLoading } = trpc.admin.stats.useQuery();
+  const { data: usersData, isLoading: usersLoading } = trpc.admin.listUsers.useQuery({ limit: 5 });
 
   return (
     <div className="space-y-8">
@@ -17,10 +17,10 @@ export default function AdminDashboardPage() {
 
       {/* Infrastructure Health */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <HealthCard title="CPU Load" value="12%" icon={Cpu} status="normal" />
-        <HealthCard title="Memory Usage" value="4.2 GB" icon={HardDrive} status="normal" />
-        <HealthCard title="Active Connections" value="1,284" icon={Globe} status="normal" />
-        <HealthCard title="Database Latency" value="8ms" icon={Database} status="normal" />
+        <HealthCard title="Total Users" value={statsLoading ? "..." : stats?.totalUsers?.toString() || "0"} icon={Users} status="normal" />
+        <HealthCard title="Total Analyses" value={statsLoading ? "..." : stats?.totalAnalyses?.toString() || "0"} icon={Activity} status="normal" />
+        <HealthCard title="Active Cases" value={statsLoading ? "..." : stats?.totalCases?.toString() || "0"} icon={Shield} status="normal" />
+        <HealthCard title="System Uptime" value={statsLoading ? "..." : stats?.systemHealth || "99.9%"} icon={Cpu} status="normal" />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -54,21 +54,30 @@ export default function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow className="border-border/20">
-                  <TableCell className="font-medium text-sm">System Administrator</TableCell>
-                  <TableCell><Badge variant="outline">Admin</Badge></TableCell>
-                  <TableCell><div className="flex items-center gap-2"><div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Verified</div></TableCell>
-                </TableRow>
-                <TableRow className="border-border/20">
-                  <TableCell className="font-medium text-sm">John Investigator</TableCell>
-                  <TableCell><Badge variant="outline">Investigator</Badge></TableCell>
-                  <TableCell><div className="flex items-center gap-2"><div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Verified</div></TableCell>
-                </TableRow>
-                <TableRow className="border-border/20">
-                  <TableCell className="font-medium text-sm">Sarah Miller</TableCell>
-                  <TableCell><Badge variant="outline">User</Badge></TableCell>
-                  <TableCell><div className="flex items-center gap-2"><div className="h-1.5 w-1.5 rounded-full bg-amber-500" />Pending</div></TableCell>
-                </TableRow>
+                {usersLoading ? (
+                  [1, 2, 3].map(i => (
+                    <TableRow key={i}>
+                      <TableCell colSpan={3} className="h-10 animate-pulse bg-muted/50 rounded" />
+                    </TableRow>
+                  ))
+                ) : usersData?.rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">No users found.</TableCell>
+                  </TableRow>
+                ) : (
+                  usersData?.rows.map((user: any) => (
+                    <TableRow key={user.id} className="border-border/20">
+                      <TableCell className="font-medium text-sm">{user.name || user.email}</TableCell>
+                      <TableCell><Badge variant="outline" className="capitalize">{user.role}</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className={`h-1.5 w-1.5 rounded-full ${user.verificationStatus === 'verified' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                          <span className="capitalize">{user.verificationStatus}</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>

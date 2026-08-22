@@ -4,10 +4,22 @@ import { Shield, FileSearch, History, Upload, AlertTriangle, CheckCircle2, Clock
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
-
+import { useAnalysisEvents } from "@/hooks/useAnalysisEvents";
+import { useEffect } from "react";
+	
 export default function DashboardPage() {
   const [, navigate] = useLocation();
+  const utils = trpc.useUtils();
   const { data: jobs, isLoading } = trpc.analysis.list.useQuery({ limit: 5 });
+  const { data: stats, isLoading: statsLoading } = trpc.analysis.stats.useQuery();
+  const lastEvent = useAnalysisEvents();
+
+  useEffect(() => {
+    if (lastEvent) {
+      utils.analysis.list.invalidate();
+      utils.analysis.stats.invalidate();
+    }
+  }, [lastEvent, utils]);
 
   return (
     <div className="space-y-8">
@@ -26,26 +38,26 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard 
           title="Total Analyses" 
-          value="24" 
-          description="+3 from last week" 
+          value={statsLoading ? "..." : stats?.totalAnalyses?.toString() || "0"} 
+          description="Lifetime scans" 
           icon={Activity} 
         />
         <StatCard 
           title="Detected Risks" 
-          value="2" 
+          value={statsLoading ? "..." : stats?.detectedRisks?.toString() || "0"} 
           description="High confidence alerts" 
           icon={AlertTriangle} 
-          trend="down"
+          trend={stats?.detectedRisks && stats.detectedRisks > 0 ? "up" : "down"}
         />
         <StatCard 
           title="Authenticity Rate" 
-          value="92%" 
+          value={statsLoading ? "..." : `${stats?.authenticityRate || 100}%`} 
           description="Average media score" 
           icon={Shield} 
         />
         <StatCard 
           title="Active Cases" 
-          value="1" 
+          value={statsLoading ? "..." : stats?.activeCases?.toString() || "0"} 
           description="Pending investigation" 
           icon={FileSearch} 
         />

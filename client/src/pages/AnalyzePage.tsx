@@ -13,6 +13,46 @@ export default function AnalyzePage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const selected = e.dataTransfer.files?.[0];
+    if (selected) {
+      validateAndSetFile(selected);
+    }
+  }, []);
+
+  const validateAndSetFile = (selected: File) => {
+    const allowedTypes = [
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+      'video/mp4', 'video/webm', 'video/quicktime',
+      'audio/mpeg', 'audio/wav', 'audio/ogg',
+      'text/plain'
+    ];
+    
+    if (!allowedTypes.includes(selected.type) && !selected.type.startsWith('image/') && !selected.type.startsWith('video/') && !selected.type.startsWith('audio/')) {
+      toast.error("Unsupported file type. Please upload images, videos, or audio.");
+      return;
+    }
+
+    if (selected.size > 50 * 1024 * 1024) {
+      toast.error("File too large. Maximum size is 50MB.");
+      return;
+    }
+    setFile(selected);
+  };
   
   const uploadMutation = trpc.analysis.upload.useMutation({
     onSuccess: (data) => {
@@ -28,11 +68,7 @@ export default function AnalyzePage() {
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
-      if (selected.size > 50 * 1024 * 1024) { // 50MB limit
-        toast.error("File too large. Maximum size is 50MB.");
-        return;
-      }
-      setFile(selected);
+      validateAndSetFile(selected);
     }
   };
 
@@ -89,10 +125,17 @@ export default function AnalyzePage() {
         </p>
       </div>
 
-      <Card className="border-dashed border-2 border-border/60 bg-muted/30">
+      <Card 
+        className={`border-dashed border-2 transition-colors ${
+          isDragging ? 'border-blue-500 bg-blue-500/5' : 'border-border/60 bg-muted/30'
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         <CardContent className="pt-10 pb-10">
           {!file ? (
-            <div className="flex flex-col items-center justify-center text-center space-y-4">
+            <div className="flex flex-col items-center justify-center text-center space-y-4 min-h-[200px]">
               <div className="h-20 w-20 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
                 <Upload className="h-10 w-10 text-blue-500" />
               </div>

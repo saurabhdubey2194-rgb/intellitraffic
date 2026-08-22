@@ -290,11 +290,14 @@ const analysisRouter = router({
       ? allResults.reduce((acc, r) => acc + (r.fs_analysis_results.authenticityScore || 0), 0) / allResults.length 
       : 100;
 
+    const userCases = await db.select().from(cases).where(eq(cases.userId, ctx.user.id));
+    const activeCases = userCases.filter(c => c.status === "open").length;
+
     return {
       totalAnalyses: allJobs.length,
       detectedRisks: risks.length,
       authenticityRate: Math.round(avgScore),
-      activeCases: 0, // Will be updated when cases are linked
+      activeCases,
     };
   }),
 });

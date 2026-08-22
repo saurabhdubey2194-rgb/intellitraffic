@@ -6,6 +6,12 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
+import { sseHandler } from "../events";
+import { sdk } from "./sdk";
+import { processJob } from "../worker";
+import { getDb } from "../db";
+import { analysisJobs } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 
@@ -36,6 +42,33 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+
+  // SSE for real-time updates
+  app.get("/api/events", async (req, res, next) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user) return res.status(401).end();
+      (req as any).user = user;
+      sseHandler(req, res);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Start analysis worker loop
+  setInterval(async () => {
+    try {
+      const db = await getDb();
+      if (!db) return;
+      const [job] = await db.select().from(analysisJobs).where(eq(analysisJobs.status, "queued")).limit(1);
+      if (job) {
+        processJob(job.id).catch(console.error);
+      }
+    } catch (err) {
+      console.error("Worker error:", err);
+    }
+  }, 5000);
+
   // tRPC API
   app.use(
     "/api/trpc",

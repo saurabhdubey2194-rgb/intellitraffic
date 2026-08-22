@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 
 export default function InvestigatorDashboardPage() {
   const [, navigate] = useLocation();
+  const { data: stats, isLoading: statsLoading } = trpc.cases.stats.useQuery();
+  const { data: casesData, isLoading: casesLoading } = trpc.cases.list.useQuery({ limit: 10 });
 
   return (
     <div className="space-y-8">
@@ -25,9 +27,9 @@ export default function InvestigatorDashboardPage() {
 
       {/* Case Overview */}
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Open Cases" value="8" icon={Clock} color="text-blue-500" />
-        <StatCard title="High Risk Evidence" value="12" icon={AlertTriangle} color="text-red-500" />
-        <StatCard title="Closed Investigations" value="45" icon={CheckCircle2} color="text-emerald-500" />
+        <StatCard title="Open Cases" value={statsLoading ? "..." : stats?.openCases?.toString() || "0"} icon={Clock} color="text-blue-500" />
+        <StatCard title="High Priority" value={statsLoading ? "..." : stats?.highPriority?.toString() || "0"} icon={AlertTriangle} color="text-red-500" />
+        <StatCard title="Total Investigations" value={statsLoading ? "..." : stats?.totalCases?.toString() || "0"} icon={CheckCircle2} color="text-emerald-500" />
       </div>
 
       <Card className="border-border/40 shadow-sm">
@@ -61,27 +63,30 @@ export default function InvestigatorDashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <CaseRow 
-                id="CASE-2026-001" 
-                subject="Election Video Deepfake" 
-                evidenceCount={3} 
-                status="open" 
-                updated="2 hours ago" 
-              />
-              <CaseRow 
-                id="CASE-2026-002" 
-                subject="Unauthorized Voice Clone" 
-                evidenceCount={1} 
-                status="open" 
-                updated="5 hours ago" 
-              />
-              <CaseRow 
-                id="CASE-2026-003" 
-                subject="Social Media Manipulation" 
-                evidenceCount={12} 
-                status="closed" 
-                updated="1 day ago" 
-              />
+              {casesLoading ? (
+                [1, 2, 3].map(i => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={6} className="h-12 animate-pulse bg-muted/50 rounded-lg" />
+                  </TableRow>
+                ))
+              ) : casesData?.rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                    No active investigations found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                casesData?.rows.map((c: any) => (
+                  <CaseRow 
+                    key={c.id}
+                    id={`CASE-${new Date(c.createdAt).getFullYear()}-${c.id.toString().padStart(3, '0')}`} 
+                    subject={c.title} 
+                    evidenceCount={0} // Evidence count requires additional join or count
+                    status={c.status} 
+                    updated={new Date(c.updatedAt).toLocaleDateString()} 
+                  />
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
