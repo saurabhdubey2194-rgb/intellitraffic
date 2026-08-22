@@ -3,13 +3,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, ExternalLink, AlertTriangle, CheckCircle2, ShieldAlert, Zap, Clock, Shield } from "lucide-react";
+import { Search, Filter, ExternalLink, AlertTriangle, CheckCircle2, ShieldAlert, Zap, Clock, Shield, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { Link } from "wouter";
+import { toast } from "sonner";
 
 export default function AdminScansPage() {
+  const utils = trpc.useUtils();
   const { data: scans, isLoading } = trpc.admin.listAllScans.useQuery({ limit: 50 });
+
+  const deleteScan = trpc.admin.deleteScan.useMutation({
+    onSuccess: () => {
+      utils.admin.listAllScans.invalidate();
+      toast.success("Scan registry node purged successfully");
+    },
+    onError: (err) => toast.error(err.message)
+  });
 
   return (
     <div className="space-y-12 pb-20">
@@ -107,11 +117,26 @@ export default function AdminScansPage() {
                       {format(new Date(row.job.createdAt), "MMM d, HH:mm")}
                     </TableCell>
                     <TableCell className="text-right px-8">
-                      <Link href={`/analysis/${row.job.id}`}>
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary">
-                          <ExternalLink className="h-4 w-4" />
+                      <div className="flex justify-end gap-1">
+                        <Link href={`/analysis/${row.job.id}`}>
+                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary">
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 rounded-xl hover:bg-red-500/10 hover:text-red-400"
+                          onClick={() => {
+                            if (confirm("Purge this scan from neural registry?")) {
+                              deleteScan.mutate({ jobId: row.job.id });
+                            }
+                          }}
+                          disabled={deleteScan.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      </Link>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

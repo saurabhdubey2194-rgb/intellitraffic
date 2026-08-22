@@ -226,3 +226,29 @@ export const abuseReports = mysqlTable("fs_abuse_reports", {
   status: mysqlEnum("status", ["pending", "reviewed", "resolved"]).default("pending").notNull(),
   createdAt: datetime("createdAt").default(new Date()).notNull(),
 });
+
+/**
+ * Verification tokens for email confirmation and password resets.
+ */
+export const verificationTokens = mysqlTable("fs_verification_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  type: mysqlEnum("type", ["email_verification", "password_reset"]).notNull(),
+  expiresAt: datetime("expiresAt").notNull(),
+  createdAt: datetime("createdAt").default(new Date()).notNull(),
+});
+
+/**
+ * Secure sharing tokens for read-only access to cases or analyses.
+ */
+export const shareTokens = mysqlTable("fs_share_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  resourceType: mysqlEnum("resourceType", ["analysis", "case"]).notNull(),
+  resourceId: int("resourceId").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: datetime("expiresAt"),
+  revokedAt: datetime("revokedAt"),
+  createdAt: datetime("createdAt").default(new Date()).notNull(),
+});

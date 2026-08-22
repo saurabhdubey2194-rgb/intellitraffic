@@ -16,11 +16,7 @@ export default function AdminSystemPage() {
   })) || [];
 
   const handleRestart = () => {
-    toast.promise(new Promise(resolve => setTimeout(resolve, 2000)), {
-      loading: 'Initiating global service restart protocol...',
-      success: 'All neural services synchronized and restarted successfully.',
-      error: 'Failed to synchronize services.',
-    });
+    toast.info("Neural node synchronization is managed automatically by the core grid.");
   };
 
   return (

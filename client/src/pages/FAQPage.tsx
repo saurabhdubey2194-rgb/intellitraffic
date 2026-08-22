@@ -5,16 +5,19 @@ import { toast } from "sonner";
 export default function FAQPage() {
   const faqs = [
     {
+      id: "detect",
       q: "How accurate is FakeShield AI?",
       a: "Our neural forensic models achieve a 99.8% accuracy rate in digital manipulation detection and 98.7% in deepfake video analysis, verified against the latest GAN and diffusion artifacts.",
       icon: <Zap className="h-4 w-4 text-primary" />
     },
     {
+      id: "privacy",
       q: "Is my data safe during analysis?",
       a: "Yes. All uploads are processed via military-grade encrypted channels. We utilize ephemeral forensic processing, meaning your data is automatically purged after the report is generated unless you explicitly save it to a case.",
       icon: <Lock className="h-4 w-4 text-primary" />
     },
     {
+      id: "files",
       q: "What types of files can I analyze?",
       a: "FakeShield supports a multi-modal spectrum: Images (JPG, PNG, WebP), Video (MP4, MOV, AVI), Audio (MP3, WAV, AAC), Documents (PDF), and direct URLs for phishing and social engineering analysis.",
       icon: <Shield className="h-4 w-4 text-primary" />
@@ -25,6 +28,7 @@ export default function FAQPage() {
       icon: <Clock className="h-4 w-4 text-primary" />
     },
     {
+      id: "api",
       q: "Can I use FakeShield for enterprise security?",
       a: "Absolutely. Our Enterprise tier provides dedicated API access, bulk processing infrastructure, team collaboration workspaces, and custom model fine-tuning for specific corporate threat profiles.",
       icon: <Globe className="h-4 w-4 text-primary" />
@@ -73,8 +77,8 @@ export default function FAQPage() {
       </div>
 
       <Accordion type="single" collapsible className="w-full space-y-4">
-        {faqs.map((f, i) => (
-          <AccordionItem key={i} value={`item-${i}`} className="border-white/10 bg-white/5 rounded-2xl px-6 overflow-hidden">
+        {faqs.map((f: any, i) => (
+          <AccordionItem key={i} value={`item-${i}`} id={f.id} className="border-white/10 bg-white/5 rounded-2xl px-6 overflow-hidden">
             <AccordionTrigger className="font-rajdhani text-left hover:text-primary transition-colors py-6 uppercase tracking-tight text-lg hover:no-underline text-white">
               <div className="flex items-center gap-4">
                 {f.icon}

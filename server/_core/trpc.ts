@@ -19,7 +19,7 @@ const requireUser = t.middleware(async opts => {
   }
 
   // Enforce usage quotas for analysis scans
-  if (path.startsWith('analysis.upload')) {
+  if (path === 'analysis.startAnalysis') {
     const db = await requireDb();
     const { usageQuotas } = await import("../../drizzle/schema");
     const { eq } = await import("drizzle-orm");
@@ -57,7 +57,7 @@ const requireUser = t.middleware(async opts => {
       ipAddress: ctx.req.ip || ctx.req.socket.remoteAddress,
     });
 
-    if (path.startsWith('analysis.upload') && (result as any).ok) {
+    if (path === 'analysis.startAnalysis' && (result as any).ok) {
       await db.update(usageQuotas)
         .set({ currentUsage: sql`${usageQuotas.currentUsage} + 1` })
         .where(eq(usageQuotas.userId, ctx.user.id));

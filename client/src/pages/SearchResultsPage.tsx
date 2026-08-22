@@ -33,7 +33,7 @@ export default function SearchResultsPage() {
             <Skeleton key={i} className="h-32 w-full rounded-2xl bg-white/5" />
           ))}
         </div>
-      ) : !results || (results.analyses.length === 0 && results.features.length === 0 && results.cases.length === 0) ? (
+      ) : !results || (results.analyses.length === 0 && results.features.length === 0 && results.cases.length === 0 && results.help.length === 0) ? (
         <Card className="border-white/5 bg-card/20 backdrop-blur-sm rounded-3xl p-20 text-center">
           <div className="flex flex-col items-center gap-8">
             <div className="h-24 w-24 rounded-3xl bg-primary/5 flex items-center justify-center border border-primary/10 relative overflow-hidden group">
@@ -142,6 +142,32 @@ export default function SearchResultsPage() {
                         </div>
                       </div>
                       <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Help Matches */}
+          {results.help && results.help.length > 0 && (
+            <div className="space-y-6 col-span-full mt-8">
+              <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-4">Support & Help</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {results.help.map(help => (
+                  <Card 
+                    key={help.id} 
+                    className="border-white/5 bg-white/5 hover:bg-primary/10 hover:border-primary/20 transition-all cursor-pointer group rounded-2xl"
+                    onClick={() => navigate(help.path)}
+                  >
+                    <CardContent className="p-5 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                          <Search className="h-5 w-5 text-blue-500" />
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-white group-hover:text-primary transition-colors">{help.title}</span>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-primary group-hover:translate-x-1 transition-transform" />
                     </CardContent>
                   </Card>
                 ))}

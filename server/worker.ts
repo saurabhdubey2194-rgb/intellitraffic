@@ -7,8 +7,8 @@
 import { eq } from "drizzle-orm";
 import { analysisJobs, analysisResults, analysisSignals, mediaFiles, notifications } from "../drizzle/schema";
 import { getDb } from "./db";
-import { analyzeMedia } from "./ai";
 import { emitAnalysisUpdate } from "./events";
+import { AIForensicManager } from "./ai-provider";
 
 export async function processJob(jobId: number) {
   const db = await getDb();
@@ -36,8 +36,8 @@ export async function processJob(jobId: number) {
     const [job] = await db.select().from(analysisJobs).where(eq(analysisJobs.id, jobId)).limit(1);
     const [media] = await db.select().from(mediaFiles).where(eq(mediaFiles.id, job.mediaId)).limit(1);
 
-    // 3. Call AI Analysis Engine
-    const analysis = await analyzeMedia(media.type, media.url, media.originalName);
+    // 3. Call AI Analysis Engine via Provider Abstraction
+    const analysis = await AIForensicManager.getInstance().analyze(media.type, media.url, media.originalName);
     
     await new Promise(resolve => setTimeout(resolve, 3000));
     

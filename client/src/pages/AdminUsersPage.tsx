@@ -9,10 +9,33 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 
 export default function AdminUsersPage() {
+  const utils = trpc.useUtils();
   const { data: users, isLoading } = trpc.admin.listUsers.useQuery({ limit: 50 });
 
-  const handleAction = (action: string, userName: string) => {
-    toast.info(`Neural command '${action}' issued for node: ${userName}`);
+  const suspendUser = trpc.admin.suspendUser.useMutation({
+    onSuccess: () => {
+      utils.admin.listUsers.invalidate();
+      toast.success("User identity suspended successfully");
+    },
+    onError: (err) => toast.error(err.message)
+  });
+
+  const restoreUser = trpc.admin.restoreUser.useMutation({
+    onSuccess: () => {
+      utils.admin.listUsers.invalidate();
+      toast.success("User identity restored successfully");
+    },
+    onError: (err) => toast.error(err.message)
+  });
+
+  const handleAction = (action: string, user: any) => {
+    if (action === "TERMINATE") {
+      suspendUser.mutate({ userId: user.id, reason: "Administrative suspension" });
+    } else if (action === "VERIFY") {
+      restoreUser.mutate({ userId: user.id });
+    } else {
+      toast.info(`Neural command '${action}' issued for node: ${user.name}`);
+    }
   };
 
   return (
@@ -85,8 +108,12 @@ export default function AdminUsersPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                        Active Node
+                      <Badge variant="outline" className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${
+                        user.verificationStatus === 'suspended' 
+                          ? 'bg-red-500/10 text-red-400 border-red-500/20' 
+                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      }`}>
+                        {user.verificationStatus === 'suspended' ? 'Suspended' : 'Active Node'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -94,29 +121,34 @@ export default function AdminUsersPage() {
                     </TableCell>
                     <TableCell className="text-right px-8">
                       <div className="flex justify-end gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-9 w-9 rounded-lg hover:bg-emerald-500/10 hover:text-emerald-400"
-                          onClick={() => handleAction("VERIFY", user.name)}
-                        >
-                          <UserCheck className="h-4 w-4" />
-                        </Button>
+                        {user.verificationStatus === 'suspended' ? (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 rounded-lg hover:bg-emerald-500/10 hover:text-emerald-400"
+                            onClick={() => handleAction("VERIFY", user)}
+                            disabled={restoreUser.isPending}
+                          >
+                            <UserCheck className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-9 w-9 rounded-lg hover:bg-red-500/10 hover:text-red-400"
+                            onClick={() => handleAction("TERMINATE", user)}
+                            disabled={suspendUser.isPending}
+                          >
+                            <UserX className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="icon" 
                           className="h-9 w-9 rounded-lg hover:bg-blue-500/10 hover:text-blue-400"
-                          onClick={() => handleAction("ELEVATE", user.name)}
+                          onClick={() => handleAction("ELEVATE", user)}
                         >
                           <Shield className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-9 w-9 rounded-lg hover:bg-red-500/10 hover:text-red-400"
-                          onClick={() => handleAction("TERMINATE", user.name)}
-                        >
-                          <UserX className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>

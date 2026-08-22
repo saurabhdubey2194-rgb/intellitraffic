@@ -20,7 +20,8 @@ import {
   Image as ImageIcon,
   Zap,
   Info,
-  Lock
+  Lock,
+  Share2
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -43,6 +44,17 @@ export default function CaseDetailPage() {
       utils.cases.get.invalidate({ caseId });
       toast.success("Case status updated");
     }
+  });
+
+  const generateShareToken = trpc.cases.generateShareToken.useMutation({
+    onSuccess: (data) => {
+      const shareUrl = `${window.location.origin}${data.url}`;
+      navigator.clipboard.writeText(shareUrl);
+      toast.success("Secure share link copied to clipboard", {
+        description: "Link has been copied to your clipboard."
+      });
+    },
+    onError: (err) => toast.error(err.message)
   });
 
   if (isLoading) {
@@ -107,6 +119,15 @@ export default function CaseDetailPage() {
               <DropdownMenuItem onClick={() => updateStatus.mutate({ caseId, status: "archived" })} className="text-[10px] font-bold uppercase tracking-widest focus:bg-primary/10 focus:text-primary">Archived</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button 
+            variant="outline"
+            className="h-12 px-6 border-white/10 hover:bg-white/5 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white"
+            onClick={() => generateShareToken.mutate({ caseId })}
+            disabled={generateShareToken.isPending}
+          >
+            <Share2 className="mr-2 h-4 w-4" />
+            {generateShareToken.isPending ? "Generating..." : "Share Case"}
+          </Button>
           <Button 
             className="h-12 px-8 bg-primary hover:bg-primary/90 text-black text-[10px] font-bold uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20"
             onClick={() => toast.info("Forensic case archive export initiated.")}

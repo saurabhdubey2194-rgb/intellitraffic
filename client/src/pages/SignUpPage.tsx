@@ -57,9 +57,20 @@ export default function SignUpPage() {
     { enabled: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) },
   );
 
+  const sendVerification = trpc.auth.sendVerification.useMutation({
+    onSuccess: (data) => {
+      toast.success("Verification sequence initiated.", {
+        description: "Check your communication index for the verification link."
+      });
+      // In demo mode, we'll show the link for easy testing
+      console.log(`[Demo] Verification link: ${data.link}`);
+    }
+  });
+
   const signUp = trpc.auth.signUp.useMutation({
     onSuccess: () => {
       toast.success("Identity initialized. Welcome to the Matrix.");
+      sendVerification.mutate();
       navigate("/dashboard", { replace: true });
     },
     onError: (err: any) => {

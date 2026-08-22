@@ -188,10 +188,10 @@ export default function Home() {
                   <ShieldCheck className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
                 </div>
               </div>
-              <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] flex items-center gap-2">
+              <div className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] flex items-center gap-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Neural Grid Operational
-              </p>
+              </div>
             </div>
           </div>
           

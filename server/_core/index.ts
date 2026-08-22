@@ -1,5 +1,9 @@
 import "dotenv/config";
 import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+import xss from "xss-clean";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -36,8 +40,33 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const app = express();
+
+  // Security Hardening
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "img-src": ["'self'", "data:", "https:", "blob:", "http:"],
+        "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:"],
+        "connect-src": ["'self'", "https:", "http:", "ws:", "wss:"],
+      },
+    },
+  }));
+  app.use(cors());
+  app.use(xss());
+  
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests from this IP, please try again after 15 minutes",
+  });
+  app.use("/api", limiter);
+
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
+
+  // JSON parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);

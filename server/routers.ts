@@ -1,6 +1,6 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { TRPCError } from "@trpc/server";
-import { eq, desc, and, like, or, sql } from "drizzle-orm";
+import { eq, desc, and, like, or, sql, gt, isNull } from "drizzle-orm";
 import { z } from "zod";
 import {
   users,
@@ -16,6 +16,8 @@ import {
   notifications,
   apiUsage,
   usageQuotas,
+  verificationTokens,
+  shareTokens,
 } from "../drizzle/schema";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ENV } from "./_core/env";
@@ -74,7 +76,7 @@ const authRouter = router({
         email: input.email,
         openId,
         role: "user",
-        verificationStatus: "verified",
+        verificationStatus: "pending",
       });
 
       const bcrypt = await import("bcryptjs");
@@ -140,31 +142,86 @@ const authRouter = router({
     .mutation(async ({ input }) => {
       const db = await requireDb();
       const [user] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
-      if (!user) return { success: true }; // Silent failure for security
+      if (!user) return { success: true };
 
-      // In a real app, send email with token. Here we just log it for demo.
-      console.log(`[Demo] Reset token for ${input.email}: demo-reset-token-${user.id}`);
+      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const expiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour
+      
+      await db.insert(verificationTokens).values({
+        userId: user.id,
+        token,
+        type: "password_reset",
+        expiresAt,
+      });
+
+      console.log(`[Security] Reset link for ${input.email}: /reset-password?token=${token}`);
       return { success: true };
     }),
   resetPassword: publicProcedure
     .input(z.object({ token: z.string(), password: z.string().min(8) }))
     .mutation(async ({ input }) => {
       const db = await requireDb();
-      // For demo, accept any token starting with 'demo-reset-token-'
-      if (!input.token.startsWith('demo-reset-token-')) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid or expired token" });
+      const [record] = await db.select()
+        .from(verificationTokens)
+        .where(and(
+          eq(verificationTokens.token, input.token),
+          eq(verificationTokens.type, "password_reset"),
+          gt(verificationTokens.expiresAt, new Date())
+        ))
+        .limit(1);
+        
+      if (!record) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid or expired reset token." });
       }
-      
-      const userId = parseInt(input.token.split('-').pop() || "0");
-      if (!userId) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid token structure" });
 
       const bcrypt = await import("bcryptjs");
       const hash = await bcrypt.hash(input.password, 10);
       
       await db.update(userPasswords)
         .set({ passwordHash: hash })
-        .where(eq(userPasswords.userId, userId));
+        .where(eq(userPasswords.userId, record.userId));
         
+      await db.delete(verificationTokens).where(eq(verificationTokens.id, record.id));
+        
+      return { success: true };
+    }),
+  sendVerification: protectedProcedure.mutation(async ({ ctx }) => {
+    const db = await requireDb();
+    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    
+    await db.insert(verificationTokens).values({
+      userId: ctx.user.id,
+      token,
+      type: "email_verification",
+      expiresAt,
+    });
+    
+    return { success: true, link: `/verify-email?token=${token}` };
+  }),
+  verifyEmail: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .mutation(async ({ input }) => {
+      const db = await requireDb();
+      const [record] = await db.select()
+        .from(verificationTokens)
+        .where(and(
+          eq(verificationTokens.token, input.token),
+          eq(verificationTokens.type, "email_verification"),
+          gt(verificationTokens.expiresAt, new Date())
+        ))
+        .limit(1);
+        
+      if (!record) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid or expired verification token." });
+      }
+      
+      await db.update(users)
+        .set({ verificationStatus: "verified" })
+        .where(eq(users.id, record.userId));
+        
+      await db.delete(verificationTokens).where(eq(verificationTokens.id, record.id));
+      
       return { success: true };
     }),
   profile: protectedProcedure.query(async ({ ctx }) => {
@@ -395,14 +452,69 @@ const analysisRouter = router({
         { id: "f4", name: "URL Forensic Scanner", path: "/analyze?type=url" },
         { id: "f5", name: "Document Integrity Check", path: "/analyze?type=document" },
         { id: "f6", name: "Threat Intelligence Index", path: "/threat-intelligence" },
+        { id: "f7", name: "Platform API Documentation", path: "/faq#api" },
+        { id: "f8", name: "Investigator Handbook", path: "/faq#investigator" },
+        { id: "f9", name: "Privacy & Compliance", path: "/faq#privacy" },
       ].filter(f => f.name.toLowerCase().includes(q));
 
       return {
         analyses: jobs.map(r => ({ id: r.id, title: r.name, type: r.type, path: `/analysis/${r.id}` })),
-        cases: userCases.map(c => ({ id: c.id, title: c.title, type: "case", path: `/cases/${c.id}` })),
+        cases: userCases.map(c => ({ id: c.id, title: c.title, type: "case", path: `/case/${c.id}` })),
         features: features.map(f => ({ id: f.id, title: f.name, type: "feature", path: f.path })),
+        help: [
+          { id: "h1", title: "How to detect deepfakes?", path: "/faq#detect" },
+          { id: "h2", title: "Understanding risk scores", path: "/faq#scores" },
+          { id: "h3", title: "Exporting forensic reports", path: "/faq#export" },
+        ].filter(h => h.title.toLowerCase().includes(q)),
       };
     }),
+
+  /**
+   * Email Verification & Sharing
+   */
+  sendVerification: protectedProcedure.mutation(async ({ ctx }) => {
+    const db = await requireDb();
+    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    
+    await db.insert(verificationTokens).values({
+      userId: ctx.user.id,
+      token,
+      type: "email_verification",
+      expiresAt,
+    });
+    
+    // In a real app, send email here. For demo, we return the link.
+    return { success: true, link: `/verify-email?token=${token}` };
+  }),
+
+  verifyEmail: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .mutation(async ({ input }) => {
+      const db = await requireDb();
+      const [record] = await db.select()
+        .from(verificationTokens)
+        .where(and(
+          eq(verificationTokens.token, input.token),
+          eq(verificationTokens.type, "email_verification"),
+          gt(verificationTokens.expiresAt, new Date())
+        ))
+        .limit(1);
+        
+      if (!record) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid or expired verification token." });
+      }
+      
+      await db.update(users)
+        .set({ verificationStatus: "verified" })
+        .where(eq(users.id, record.userId));
+        
+      await db.delete(verificationTokens).where(eq(verificationTokens.id, record.id));
+      
+      return { success: true };
+    }),
+
+
 });
 
 /**
@@ -550,6 +662,110 @@ const caseRouter = router({
         .where(eq(cases.id, input.caseId));
       return { success: true };
     }),
+
+  generateShareToken: investigatorProcedure
+    .input(z.object({ 
+      caseId: z.number(), 
+      expiresInDays: z.number().optional().default(7) 
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await requireDb();
+      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const expiresAt = new Date(Date.now() + input.expiresInDays * 24 * 60 * 60 * 1000);
+      
+      await db.insert(shareTokens).values({
+        userId: ctx.user.id,
+        resourceType: "case",
+        resourceId: input.caseId,
+        token,
+        expiresAt,
+      });
+      
+      return { token, url: `/shared/case/${token}` };
+    }),
+
+  getSharedCase: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .query(async ({ input }) => {
+      const db = await requireDb();
+      const [share] = await db.select()
+        .from(shareTokens)
+        .where(and(
+          eq(shareTokens.token, input.token),
+          eq(shareTokens.resourceType, "case"),
+          or(isNull(shareTokens.expiresAt), gt(shareTokens.expiresAt, new Date())),
+          isNull(shareTokens.revokedAt)
+        ))
+        .limit(1);
+        
+      if (!share) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Shared case not found, expired, or revoked." });
+      }
+      
+      const [caseData] = await db.select().from(cases).where(eq(cases.id, share.resourceId)).limit(1);
+      const evidence = await db.select({
+        id: mediaFiles.id,
+        name: mediaFiles.originalName,
+        type: mediaFiles.type,
+        url: mediaFiles.url,
+        result: analysisResults
+      })
+      .from(caseEvidence)
+      .innerJoin(mediaFiles, eq(caseEvidence.mediaId, mediaFiles.id))
+      .leftJoin(analysisResults, eq(mediaFiles.id, analysisResults.mediaId))
+      .where(eq(caseEvidence.caseId, share.resourceId));
+      
+      return { case: caseData, evidence };
+    }),
+
+  getSharedContent: publicProcedure
+    .input(z.object({ token: z.string(), resourceType: z.enum(["analysis", "case"]) }))
+    .query(async ({ input }) => {
+      const db = await requireDb();
+      const [share] = await db.select()
+        .from(shareTokens)
+        .where(and(
+          eq(shareTokens.token, input.token),
+          eq(shareTokens.resourceType, input.resourceType),
+          or(isNull(shareTokens.expiresAt), gt(shareTokens.expiresAt, new Date())),
+          isNull(shareTokens.revokedAt)
+        ))
+        .limit(1);
+        
+      if (!share) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Shared content not found, expired, or revoked." });
+      }
+      
+      if (input.resourceType === "case") {
+        const [caseData] = await db.select().from(cases).where(eq(cases.id, share.resourceId)).limit(1);
+        const evidence = await db.select({
+          id: mediaFiles.id,
+          name: mediaFiles.originalName,
+          type: mediaFiles.type,
+          url: mediaFiles.url,
+          result: analysisResults
+        })
+        .from(caseEvidence)
+        .innerJoin(mediaFiles, eq(caseEvidence.mediaId, mediaFiles.id))
+        .leftJoin(analysisResults, eq(mediaFiles.id, analysisResults.mediaId))
+        .where(eq(caseEvidence.caseId, share.resourceId));
+        
+        return { type: "case", data: caseData, evidence };
+      } else {
+        const [job] = await db.select({
+          job: analysisJobs,
+          media: mediaFiles,
+          result: analysisResults
+        })
+        .from(analysisJobs)
+        .innerJoin(mediaFiles, eq(analysisJobs.mediaId, mediaFiles.id))
+        .leftJoin(analysisResults, eq(analysisJobs.id, analysisResults.jobId))
+        .where(eq(analysisJobs.id, share.resourceId))
+        .limit(1);
+        
+        return { type: "analysis", data: job };
+      }
+    }),
 });
 
 /**
@@ -626,6 +842,60 @@ const adminRouter = router({
       .offset(input.offset || 0);
       
       return { rows, total: rows.length };
+    }),
+
+  suspendUser: adminProcedure
+    .input(z.object({ userId: z.number(), reason: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await requireDb();
+      await db.update(users)
+        .set({ verificationStatus: "suspended" })
+        .where(eq(users.id, input.userId));
+      
+      await db.insert(auditLogs).values({
+        userId: ctx.user.id,
+        action: "suspend_user",
+        resourceType: "user",
+        resourceId: input.userId.toString(),
+        metadata: JSON.stringify({ reason: input.reason }),
+      });
+      
+      return { success: true };
+    }),
+
+  restoreUser: adminProcedure
+    .input(z.object({ userId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await requireDb();
+      await db.update(users)
+        .set({ verificationStatus: "verified" })
+        .where(eq(users.id, input.userId));
+      
+      await db.insert(auditLogs).values({
+        userId: ctx.user.id,
+        action: "restore_user",
+        resourceType: "user",
+        resourceId: input.userId.toString(),
+      });
+      
+      return { success: true };
+    }),
+
+  deleteScan: adminProcedure
+    .input(z.object({ jobId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await requireDb();
+      // In a real app, we'd delete from S3 too.
+      await db.delete(analysisJobs).where(eq(analysisJobs.id, input.jobId));
+      
+      await db.insert(auditLogs).values({
+        userId: ctx.user.id,
+        action: "delete_scan",
+        resourceType: "analysis_job",
+        resourceId: input.jobId.toString(),
+      });
+      
+      return { success: true };
     }),
   
   systemHealth: adminProcedure.query(async () => {
