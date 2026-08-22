@@ -59,6 +59,29 @@ def generate_report(job_id, media_name, result, output_path):
         pdf.multi_cell(0, 6, signal.get('description', ''))
         pdf.ln(4)
     
+    # Evidence
+    evidence = result.get('evidence', [])
+    if evidence:
+        pdf.ln(5)
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, "Specific Forensic Evidence", 0, 1)
+        for item in evidence:
+            pdf.set_font("Arial", "B", 11)
+            pdf.cell(0, 8, f"Location: {item.get('location', 'N/A')} ({item.get('type', 'pattern')})", 0, 1)
+            pdf.set_font("Arial", "", 10)
+            pdf.multi_cell(0, 6, item.get('description', ''))
+            pdf.ln(2)
+            
+    # Recommendations
+    recs = result.get('recommendations', [])
+    if recs:
+        pdf.ln(5)
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, "Recommended Actions", 0, 1)
+        pdf.set_font("Arial", "", 11)
+        for rec in recs:
+            pdf.multi_cell(0, 8, f"- {rec}")
+            
     # Footer
     pdf.set_y(-30)
     pdf.set_font("Arial", "I", 8)

@@ -5,7 +5,7 @@
  */
 
 import { eq } from "drizzle-orm";
-import { analysisJobs, analysisResults, analysisSignals, mediaFiles } from "../drizzle/schema";
+import { analysisJobs, analysisResults, analysisSignals, mediaFiles, notifications } from "../drizzle/schema";
 import { getDb } from "./db";
 import { analyzeMedia } from "./ai";
 import { emitAnalysisUpdate } from "./events";
@@ -67,6 +67,19 @@ export async function processJob(jobId: number) {
     await db.update(analysisJobs)
       .set({ status: "completed", progress: 100, completedAt: new Date() })
       .where(eq(analysisJobs.id, jobId));
+
+    // 7. Create Notification
+    const isHighRisk = ['high', 'critical'].includes(analysis.riskLevel);
+    await db.insert(notifications).values({
+      userId: jobInfo.userId,
+      title: isHighRisk ? "⚠️ HIGH RISK DETECTED" : "Analysis Completed",
+      message: isHighRisk 
+        ? `CRITICAL: Potential deepfake detected in FS-${jobId.toString().padStart(6, '0')}. Risk Level: ${analysis.riskLevel.toUpperCase()}.`
+        : `Forensic scan for FS-${jobId.toString().padStart(6, '0')} is ready. Verdict: ${analysis.riskLevel.toUpperCase()} RISK.`,
+      type: analysis.riskLevel === 'low' ? 'success' : analysis.riskLevel === 'moderate' ? 'warning' : 'error',
+      link: `/analysis/${jobId}`,
+    });
+
     emitAnalysisUpdate(jobInfo.userId, { 
       jobId, 
       status: "completed", 
@@ -86,6 +99,13 @@ export async function processJob(jobId: number) {
     try {
       const [jobInfo] = await db.select().from(analysisJobs).where(eq(analysisJobs.id, jobId)).limit(1);
       if (jobInfo) {
+        await db.insert(notifications).values({
+          userId: jobInfo.userId,
+          title: "❌ Analysis Failed",
+          message: `Forensic engine encountered an error while processing FS-${jobId.toString().padStart(6, '0')}.`,
+          type: "error",
+          link: `/analysis/${jobId}`,
+        });
         emitAnalysisUpdate(jobInfo.userId, { jobId, status: "failed", error: String(error) });
       }
     } catch (e) {

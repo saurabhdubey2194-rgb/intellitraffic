@@ -348,4 +348,4 @@ function buildCronUser(
 }
 
 export const sdk = new SDKServer();
-export const authenticateRequest = sdk.authenticateRequest.bind(sdk);
+export const authenticateRequest = (req: Request) => sdk.authenticateRequest(req);

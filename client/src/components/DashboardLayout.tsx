@@ -23,7 +23,6 @@ import {
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   Activity,
-  Bell,
   History,
   Home,
   LogOut,
@@ -42,6 +41,7 @@ import { useLocation } from "wouter";
 import { ThemeToggle } from "./ThemeToggle";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
+import { NotificationCenter } from "./NotificationCenter";
 
 export type NavItem = {
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
@@ -206,11 +206,13 @@ function DashboardLayoutContent({
                   <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider bg-accent text-accent-foreground rounded px-2 py-0.5 whitespace-nowrap">
                     {ROLE_LABEL[role]}
                   </span>
+                  <NotificationCenter />
                   <ThemeToggle className="!border-sidebar-border h-8 w-8 !text-sidebar-foreground/90" />
                 </div>
               ) : (
                 <div className="flex items-center justify-center gap-2 shrink-0">
                   <LogoMark className="shrink-0" />
+                  <NotificationCenter />
                   <ThemeToggle className="!border-sidebar-border h-8 w-8 !text-sidebar-foreground/90" />
                 </div>
               )}
@@ -294,6 +296,7 @@ function DashboardLayoutContent({
               <span className="text-[10px] font-semibold uppercase tracking-wider bg-accent text-accent-foreground rounded px-2 py-1 whitespace-nowrap mr-2">
                 {ROLE_LABEL[role]}
               </span>
+              <NotificationCenter />
               <ThemeToggle />
             </div>
           </div>

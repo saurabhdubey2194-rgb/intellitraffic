@@ -18,6 +18,12 @@ export async function getDb() {
   return _db;
 }
 
+export async function requireDb() {
+  const db = await getDb();
+  if (!db) throw new Error("Database connection not available");
+  return db;
+}
+
 export async function upsertUser(user: Partial<User> & { openId: string }): Promise<void> {
   const db = await getDb();
   if (!db) {

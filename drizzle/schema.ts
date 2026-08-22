@@ -61,7 +61,7 @@ export const mediaFiles = mysqlTable("fs_media_files", {
   storageKey: varchar("storageKey", { length: 300 }).notNull(),
   url: text("url").notNull(),
   sha256Hash: varchar("sha256Hash", { length: 64 }),
-  type: mysqlEnum("type", ["image", "video", "audio", "text"]).notNull(),
+    type: mysqlEnum("type", ["image", "video", "audio", "text", "url", "document"]).notNull(),
   createdAt: datetime("createdAt").default(new Date()).notNull(),
 });
 

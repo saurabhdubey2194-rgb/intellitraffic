@@ -15,20 +15,29 @@ export type AnalysisSignal = {
   description: string;
 };
 
+export type AnalysisEvidence = {
+  type: "timestamp" | "region" | "pattern";
+  location: string;
+  description: string;
+  thumbnail?: string;
+};
+
 export type AnalysisResult = {
   authenticityScore: number;
   riskLevel: "low" | "moderate" | "high" | "critical";
   signals: AnalysisSignal[];
+  evidence: AnalysisEvidence[];
+  recommendations: string[];
   summary: string;
 };
 
 export async function analyzeMedia(
-  mediaType: "image" | "video" | "audio" | "text",
+  mediaType: "image" | "video" | "audio" | "text" | "url" | "document",
   mediaUrl: string,
   fileName: string
 ): Promise<AnalysisResult> {
   try {
-    const prompt = `You are a digital forensic AI specialized in deepfake detection and media authenticity verification.
+    const prompt = `You are a digital forensic AI specialized in deepfake detection, media authenticity verification, and scam detection.
 Analyze the following media metadata and provide a structured forensic report.
 
 MEDIA METADATA:
@@ -36,11 +45,24 @@ MEDIA METADATA:
 - Type: ${mediaType}
 - URL: ${mediaUrl}
 
-Your task is to simulate the output of a multi-model forensic pipeline including:
+Your task is to simulate the output of a multi-model forensic pipeline based on the media type:
+
+For VIDEO/IMAGE:
 1. GAN Artifact Detection (Generative Adversarial Network traces)
-2. Facial Biometric Inconsistency (In video/image)
-3. Frequency Domain Analysis (Fourier transform anomalies)
-4. Audio Spectrogram Forensic (For audio/video)
+2. Facial Biometric Inconsistency (Eyes, mouth, facial blending)
+3. Lighting & Shadow Consistency
+4. Frequency Domain Analysis (Fourier transform anomalies)
+
+For AUDIO:
+1. AI Voice Probability (Synthesis signatures)
+2. Pitch & Cadence Patterns (Robotic vs Natural)
+3. Splicing Indicators (Background noise discontinuities)
+
+For TEXT/URL/DOCUMENT:
+1. Phishing & Scam Language (Urgency, suspicious links, financial fraud)
+2. LLM Generation Probability (GPT/Claude/Llama signatures)
+3. Obfuscated URL Detection
+4. Structural Inconsistencies (Header manipulation, metadata mismatch)
 
 RESPONSE FORMAT (JSON):
 {
@@ -49,11 +71,19 @@ RESPONSE FORMAT (JSON):
   "summary": "string (professional forensic summary)",
   "signals": [
     {
-      "type": "string (e.g., 'Facial Blending', 'Spectral Noise')",
+      "type": "string (e.g., 'Facial Blending', 'Spectral Noise', 'Scam Urgency')",
       "score": number (0-100 probability of manipulation for this specific signal),
       "description": "string (brief forensic observation)"
     }
-  ]
+  ],
+  "evidence": [
+    {
+      "type": "timestamp" | "region" | "pattern",
+      "location": "string (e.g. '00:12-00:15' or 'Top Right')",
+      "description": "string (what was found here)"
+    }
+  ],
+  "recommendations": ["string (actionable advice)"]
 }`;
 
     const response = await invokeLLM({
@@ -73,6 +103,11 @@ RESPONSE FORMAT (JSON):
       signals: Array.isArray(result.signals) ? result.signals : [
         { type: "GAN Trace", score: 12, description: "No known generative network signatures identified." },
         { type: "Metadata Integrity", score: 98, description: "Original capture device metadata appears consistent." }
+      ],
+      evidence: Array.isArray(result.evidence) ? result.evidence : [],
+      recommendations: Array.isArray(result.recommendations) ? result.recommendations : [
+        "Monitor for further iterations of this media.",
+        "Verify source identity through secondary channels."
       ]
     };
 
@@ -84,7 +119,9 @@ RESPONSE FORMAT (JSON):
       summary: "Analysis incomplete due to processing error. Preliminary scan suggests moderate inconsistency in the frequency domain.",
       signals: [
         { type: "Processing Error", score: 100, description: "Forensic pipeline timeout." }
-      ]
+      ],
+      evidence: [],
+      recommendations: ["Retry analysis later", "Contact system administrator"]
     };
   }
 }

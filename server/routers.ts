@@ -13,6 +13,8 @@ import {
   caseEvidence,
   auditLogs,
   abuseReports,
+  notifications,
+  apiUsage,
 } from "../drizzle/schema";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ENV } from "./_core/env";
@@ -182,14 +184,14 @@ const authRouter = router({
  * Analysis & Media Router
  */
 const analysisRouter = router({
-  upload: protectedProcedure
-    .input(z.object({
-      fileName: z.string().max(300),
-      mimeType: z.string().max(128),
-      size: z.number(),
-      base64: z.string(),
-      type: z.enum(["image", "video", "audio", "text"]),
-    }))
+    upload: protectedProcedure
+      .input(z.object({
+        fileName: z.string(),
+        mimeType: z.string(),
+        size: z.number(),
+        base64: z.string(),
+        type: z.enum(["image", "video", "audio", "text", "url", "document"]),
+      }))
     .mutation(async ({ ctx, input }) => {
       const buffer = Buffer.from(input.base64, "base64");
       const storageKey = `media/${ctx.user.id}/${Date.now()}-${input.fileName}`;
@@ -274,7 +276,9 @@ const analysisRouter = router({
           type: s.type,
           score: s.score,
           description: s.description || ""
-        }))
+        })),
+        evidence: (result as any).evidence || [],
+        recommendations: (result as any).recommendations || []
       });
     }),
 
@@ -342,6 +346,41 @@ const caseRouter = router({
       avgResolutionTime: "2.4 days",
     };
   }),
+
+  get: investigatorProcedure
+    .input(z.object({ caseId: z.number() }))
+    .query(async ({ input }) => {
+      return q.getCaseDetails(input.caseId);
+    }),
+
+  addEvidence: investigatorProcedure
+    .input(z.object({
+      caseId: z.number(),
+      mediaId: z.number(),
+      notes: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await requireDb();
+      await db.insert(caseEvidence).values({
+        caseId: input.caseId,
+        mediaId: input.mediaId,
+        notes: input.notes,
+      });
+      return { success: true };
+    }),
+
+  updateStatus: investigatorProcedure
+    .input(z.object({
+      caseId: z.number(),
+      status: z.enum(["open", "closed", "archived"]),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await requireDb();
+      await db.update(cases)
+        .set({ status: input.status, updatedAt: new Date() })
+        .where(eq(cases.id, input.caseId));
+      return { success: true };
+    }),
 });
 
 /**
@@ -354,12 +393,42 @@ const adminRouter = router({
     const jobCount = (await db.select().from(analysisJobs)).length;
     const caseCount = (await db.select().from(cases)).length;
     
+    // Get real security alerts from audit logs
+    const alerts = await db.select().from(auditLogs)
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(5);
+
+    // Get real API usage metrics
+    const usage = await db.select().from(apiUsage)
+      .orderBy(desc(apiUsage.createdAt))
+      .limit(10);
+    
+    // Get failed jobs
+    const failedJobs = await db.select({
+      id: analysisJobs.id,
+      mediaId: analysisJobs.mediaId,
+      userId: analysisJobs.userId,
+      errorMessage: analysisJobs.errorMessage,
+      createdAt: analysisJobs.createdAt,
+      mediaName: mediaFiles.originalName,
+      userName: users.name,
+    })
+    .from(analysisJobs)
+    .innerJoin(mediaFiles, eq(analysisJobs.mediaId, mediaFiles.id))
+    .innerJoin(users, eq(analysisJobs.userId, users.id))
+    .where(eq(analysisJobs.status, "failed"))
+    .orderBy(desc(analysisJobs.createdAt))
+    .limit(5);
+    
     return {
       totalUsers: userCount,
       totalAnalyses: jobCount,
       totalCases: caseCount,
       systemHealth: "99.9%",
       storageUsed: "1.2 TB",
+      recentAlerts: alerts,
+      apiUsage: usage,
+      failedJobs,
     };
   }),
   
@@ -379,6 +448,27 @@ export const appRouter = router({
   analysis: analysisRouter,
   cases: caseRouter,
   admin: adminRouter,
+  notifications: router({
+    list: protectedProcedure
+      .input(z.object({ limit: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        const db = await requireDb();
+        const rows = await db.select().from(notifications)
+          .where(eq(notifications.userId, ctx.user.id))
+          .orderBy(desc(notifications.createdAt))
+          .limit(input.limit || 10);
+        return rows;
+      }),
+    markAsRead: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await requireDb();
+        await db.update(notifications)
+          .set({ read: true })
+          .where(eq(notifications.id, input.id));
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

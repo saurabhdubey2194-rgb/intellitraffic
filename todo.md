@@ -35,14 +35,16 @@
 - [x] Infrastructure Fix: Resolve server syntax errors and auth router reference issues
 - [x] Real Stats: Replace hardcoded dashboard stats with live database aggregates (User/Investigator/Admin)
 - [x] Enhanced Uploads: Implement drag-and-drop and MIME validation (AnalyzePage.tsx)
-- [ ] Multi-modal Analyzer: Universal interface for Video, Image, Audio, Document, Text, URL, Social Media
-- [ ] Deepfake Video Detection: Frame-by-frame timeline, suspicious timestamps, facial consistency, lighting/shadow artifacts
-- [ ] AI Image Detection: Highlights for artifacts, hands/fingers, text rendering, pixel anomalies
-- [ ] Voice/Audio Deepfake Detection: Spectrogram, AI voice probability, pitch patterns, splicing indicators
-- [ ] Fake Message & Scam Detection: Phishing, scam language, financial fraud detection for text/chat
-- [ ] URL & Phishing Scanner: Domain structure, reputation, redirects, obfuscation detection
-- [ ] Explainable AI: Verdict + Confidence + Signal List + Evidence + Recommendations
-- [ ] Professional Reporting: Export JSON, Print Report, Share Report (in addition to PDF)
-- [ ] Real-time Notifications: Analysis completed, high-risk detection, security alerts
-- [ ] Admin Command Center: User management, model health, API usage, failed job review
-- [ ] Database Expansion: Models for Evidence, ThreatIndicators, APIUsage, Notifications, AuditLogs
+- [x] Case Management Pro: Link multiple media files to a case, shared investigator notes, case status workflow (CaseDetailPage.tsx + addEvidence)
+- [x] Multi-modal Analyzer: Support for Video, Image, Audio, Text, URL, and Documents (schema + router + ai.ts + AnalyzePage.tsx)
+- [x] Deepfake Video Detection: Simulated forensic pipeline for facial/GAN artifacts and temporal consistency (ai.ts)
+- [x] AI Image Detection: Identification of generative artifacts and pixel anomalies (ai.ts)
+- [x] Voice/Audio Deepfake Detection: Analysis of synthesis signatures and splicing indicators (ai.ts)
+- [x] Fake Message & Scam Detection: Text-based scam language and financial fraud detection (ai.ts)
+- [x] URL & Phishing Scanner: Reputation and structural detection for malicious links (ai.ts)
+- [x] Explainable AI: Full Verdict, Confidence Score, Forensic Signals, Localized Evidence, and Actionable Recommendations (AnalysisDetailPage.tsx)
+- [x] Professional Reporting: Export JSON, Print, Share, and PDF Forensic Reports (AnalysisDetailPage.tsx + generate_pdf.py)
+- [x] Real-time Notifications: NotificationCenter component with live alerts for analysis completion and security events
+- [x] Admin Command Center: Full user management, live API usage monitoring, failed job review, and system health metrics
+- [x] Database Expansion: Full schema for Evidence, ThreatIndicators, APIUsage, Notifications, and AuditLogs implemented and verified
+- [x] API Usage Tracking: Middleware-based tracking of all protected API calls for security auditing

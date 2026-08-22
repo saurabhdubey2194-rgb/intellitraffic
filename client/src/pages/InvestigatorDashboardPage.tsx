@@ -1,16 +1,55 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileSearch, FolderPlus, Shield, Clock, AlertTriangle, CheckCircle2, MoreHorizontal, Filter, Search } from "lucide-react";
+import { FileSearch, FolderPlus, Shield, Clock, AlertTriangle, CheckCircle2, MoreHorizontal, Filter, Search, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle,
+  DialogTrigger 
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 export default function InvestigatorDashboardPage() {
   const [, navigate] = useLocation();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [newCase, setNewCase] = useState({ title: "", description: "" });
+  
+  const utils = trpc.useUtils();
   const { data: stats, isLoading: statsLoading } = trpc.cases.stats.useQuery();
   const { data: casesData, isLoading: casesLoading } = trpc.cases.list.useQuery({ limit: 10 });
+
+  const createCase = trpc.cases.create.useMutation({
+    onSuccess: (data) => {
+      toast.success("Case created successfully");
+      setIsCreateOpen(false);
+      setNewCase({ title: "", description: "" });
+      utils.cases.list.invalidate();
+      utils.cases.stats.invalidate();
+      navigate(`/cases/${data.caseId}`);
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to create case");
+    }
+  });
+
+  const handleCreate = () => {
+    if (!newCase.title.trim()) {
+      toast.error("Case title is required");
+      return;
+    }
+    createCase.mutate(newCase);
+  };
 
   return (
     <div className="space-y-8">
@@ -19,10 +58,54 @@ export default function InvestigatorDashboardPage() {
           <h1 className="text-3xl font-bold tracking-tight">Investigator Workspace</h1>
           <p className="text-muted-foreground">Manage deepfake investigation cases and forensic evidence.</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20">
-          <FolderPlus className="mr-2 h-4 w-4" />
-          Create New Case
-        </Button>
+        
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20">
+              <FolderPlus className="mr-2 h-4 w-4" />
+              Create New Case
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Create Investigation Case</DialogTitle>
+              <DialogDescription>
+                Start a new case to organize media files and forensic evidence.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="title">Case Title</Label>
+                <Input 
+                  id="title" 
+                  placeholder="e.g., Q3 Election Disinformation Campaign" 
+                  value={newCase.title}
+                  onChange={(e) => setNewCase(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="description">Description (Optional)</Label>
+                <Textarea 
+                  id="description" 
+                  placeholder="Provide context for this investigation..." 
+                  value={newCase.description}
+                  onChange={(e) => setNewCase(prev => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+              <Button 
+                onClick={handleCreate} 
+                disabled={createCase.isPending}
+                className="bg-blue-600 hover:bg-blue-500"
+              >
+                {createCase.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Case
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Case Overview */}
@@ -81,9 +164,10 @@ export default function InvestigatorDashboardPage() {
                     key={c.id}
                     id={`CASE-${new Date(c.createdAt).getFullYear()}-${c.id.toString().padStart(3, '0')}`} 
                     subject={c.title} 
-                    evidenceCount={0} // Evidence count requires additional join or count
+                    evidenceCount={0} 
                     status={c.status} 
                     updated={new Date(c.updatedAt).toLocaleDateString()} 
+                    onClick={() => navigate(`/cases/${c.id}`)}
                   />
                 ))
               )}
@@ -113,9 +197,9 @@ function StatCard({ title, value, icon: Icon, color }: { title: string, value: s
   );
 }
 
-function CaseRow({ id, subject, evidenceCount, status, updated }: { id: string, subject: string, evidenceCount: number, status: "open" | "closed", updated: string }) {
+function CaseRow({ id, subject, evidenceCount, status, updated, onClick }: { id: string, subject: string, evidenceCount: number, status: "open" | "closed", updated: string, onClick: () => void }) {
   return (
-    <TableRow className="border-border/20 group">
+    <TableRow className="border-border/20 group cursor-pointer hover:bg-accent/5" onClick={onClick}>
       <TableCell className="font-mono text-xs font-bold text-blue-500">{id}</TableCell>
       <TableCell className="font-medium text-sm">{subject}</TableCell>
       <TableCell>

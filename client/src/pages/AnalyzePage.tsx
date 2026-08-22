@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, File, Image as ImageIcon, Video, Music, X, AlertCircle, Loader2, CheckCircle2, ArrowRight } from "lucide-react";
+import { Upload, File, Image as ImageIcon, Video, Music, X, AlertCircle, Loader2, CheckCircle2, ArrowRight, FileSearch, Globe } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -39,11 +39,16 @@ export default function AnalyzePage() {
       'image/jpeg', 'image/png', 'image/webp', 'image/gif',
       'video/mp4', 'video/webm', 'video/quicktime',
       'audio/mpeg', 'audio/wav', 'audio/ogg',
-      'text/plain'
+      'text/plain', 'application/pdf', 'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ];
     
-    if (!allowedTypes.includes(selected.type) && !selected.type.startsWith('image/') && !selected.type.startsWith('video/') && !selected.type.startsWith('audio/')) {
-      toast.error("Unsupported file type. Please upload images, videos, or audio.");
+    if (!allowedTypes.includes(selected.type) && 
+        !selected.type.startsWith('image/') && 
+        !selected.type.startsWith('video/') && 
+        !selected.type.startsWith('audio/') &&
+        !selected.name.endsWith('.url')) {
+      toast.error("Unsupported file type. Please upload images, videos, audio, or documents.");
       return;
     }
 
@@ -87,10 +92,12 @@ export default function AnalyzePage() {
         const base64 = (reader.result as string).split(",")[1];
         setProgress(50);
         
-        let type: "image" | "video" | "audio" | "text" = "image";
+        let type: "image" | "video" | "audio" | "text" | "url" | "document" = "image";
         if (file.type.startsWith("video/")) type = "video";
         else if (file.type.startsWith("audio/")) type = "audio";
         else if (file.type.startsWith("text/")) type = "text";
+        else if (file.type.includes("pdf") || file.type.includes("word") || file.type.includes("officedocument")) type = "document";
+        else if (file.name.endsWith(".url")) type = "url";
         
         uploadMutation.mutate({
           fileName: file.name,
@@ -113,6 +120,8 @@ export default function AnalyzePage() {
     if (file.type.startsWith("image/")) return <ImageIcon className="h-10 w-10 text-blue-500" />;
     if (file.type.startsWith("video/")) return <Video className="h-10 w-10 text-purple-500" />;
     if (file.type.startsWith("audio/")) return <Music className="h-10 w-10 text-amber-500" />;
+    if (file.type.includes("pdf") || file.type.includes("word")) return <FileSearch className="h-10 w-10 text-emerald-500" />;
+    if (file.name.endsWith(".url")) return <Globe className="h-10 w-10 text-sky-500" />;
     return <File className="h-10 w-10 text-muted-foreground" />;
   };
 

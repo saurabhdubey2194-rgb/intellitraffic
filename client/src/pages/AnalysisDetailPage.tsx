@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, ShieldAlert, ShieldCheck, FileText, Download, Share2, ExternalLink, AlertTriangle, CheckCircle2, Info, Loader2, History } from "lucide-react";
+import { Shield, ShieldAlert, ShieldCheck, FileText, Download, Share2, ExternalLink, AlertTriangle, CheckCircle2, Info, Loader2, History, Plus, Printer } from "lucide-react";
 import { useLocation, useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { useAnalysisEvents } from "@/hooks/useAnalysisEvents";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
 
 export default function AnalysisDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,10 +38,66 @@ export default function AnalysisDetailPage() {
   const handleDownload = () => {
     downloadMutation.mutate({ jobId });
   };
+
+  const handleExportJSON = () => {
+    if (!results) return;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(results, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `FS-RPT-${id}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    toast.success("Forensic data exported as JSON");
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: `FakeShield AI Report - FS-${id}`,
+        text: `Forensic analysis report for ${currentJob.media?.originalName}. Verdict: ${results?.riskLevel.toUpperCase()}`,
+        url: window.location.href,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success("Report link copied to clipboard");
+    }
+  };
+
   const { data: results, isLoading: loadingResults } = trpc.analysis.results.useQuery(
     { jobId },
     { enabled: job?.status === "completed" }
   );
+
+  const { data: userCases } = trpc.cases.list.useQuery({ limit: 50 });
+  const addEvidence = trpc.cases.addEvidence.useMutation({
+    onSuccess: () => {
+      toast.success("Evidence added to case successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to add evidence to case");
+    }
+  });
+
+  const [isCaseModalOpen, setIsCaseModalOpen] = useState(false);
+
+  const handleAddToCase = (caseId: number) => {
+    // job object from jobStatus query includes media object but not raw mediaId directly in some shapes
+    // we need the media ID which is job.media.id in the joined result
+    const mediaId = (job as any).mediaId || (job as any).media?.id;
+    if (!mediaId) return;
+    
+    addEvidence.mutate({
+      caseId,
+      mediaId,
+      notes: `Evidence from analysis FS-${job!.id.toString().padStart(6, '0')}`
+    });
+    setIsCaseModalOpen(false);
+  };
 
   // Poll for status if not completed
   useEffect(() => {
@@ -96,10 +160,18 @@ export default function AnalysisDetailPage() {
             <p className="text-muted-foreground">Report ID: FS-{job.id.toString().padStart(6, '0')}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+        <div className="flex items-center gap-2 print:hidden">
+          <Button variant="outline" size="sm" onClick={handleShare} disabled={!isCompleted}>
             <Share2 className="mr-2 h-4 w-4" />
             Share
+          </Button>
+          <Button variant="outline" size="sm" onClick={handlePrint} disabled={!isCompleted}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportJSON} disabled={!isCompleted}>
+            <FileText className="mr-2 h-4 w-4" />
+            JSON
           </Button>
           <Button 
             variant="outline" 
@@ -108,7 +180,7 @@ export default function AnalysisDetailPage() {
             disabled={downloadMutation.isPending || job.status !== 'completed'}
           >
             {downloadMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-            PDF Report
+            PDF
           </Button>
         </div>
       </div>
@@ -200,23 +272,61 @@ export default function AnalysisDetailPage() {
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold">Forensic Signals</h4>
-                  <div className="grid gap-3">
-                    {results.signals.map((signal: any, idx: number) => (
-                      <div key={idx} className="p-3 rounded-lg border border-border/40 bg-card space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">{signal.type}</span>
-                          <span className={`text-xs font-bold ${signal.score > 80 ? 'text-emerald-500' : signal.score > 50 ? 'text-amber-500' : 'text-red-500'}`}>
-                            {signal.score}% Match
-                          </span>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold">Forensic Signals</h4>
+                    <div className="grid gap-3">
+                      {results.signals.map((signal: any, idx: number) => (
+                        <div key={idx} className="p-3 rounded-lg border border-border/40 bg-card space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">{signal.type}</span>
+                            <span className={`text-xs font-bold ${signal.score > 80 ? 'text-emerald-500' : signal.score > 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                              {signal.score}% Match
+                            </span>
+                          </div>
+                          <Progress value={signal.score} className="h-1.5" />
+                          <p className="text-xs text-muted-foreground">{signal.description}</p>
                         </div>
-                        <Progress value={signal.score} className="h-1.5" />
-                        <p className="text-xs text-muted-foreground">{signal.description}</p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold">Forensic Evidence</h4>
+                    <div className="grid gap-3">
+                      {(results as any).evidence?.length > 0 ? (results as any).evidence.map((item: any, idx: number) => (
+                        <div key={idx} className="p-3 rounded-lg border border-border/40 bg-muted/20 space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold uppercase text-blue-500">{item.type}</span>
+                            <span className="text-[10px] font-mono text-muted-foreground">{item.location}</span>
+                          </div>
+                          <p className="text-xs leading-relaxed">{item.description}</p>
+                        </div>
+                      )) : (
+                        <div className="py-8 text-center border border-dashed rounded-lg border-border/40">
+                          <p className="text-xs text-muted-foreground">No localized evidence identified.</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {(results as any).recommendations?.length > 0 && (
+                  <div className="space-y-3 pt-4 border-t border-border/40">
+                    <h4 className="text-sm font-bold flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                      Recommended Actions
+                    </h4>
+                    <div className="grid gap-2">
+                      {(results as any).recommendations.map((rec: string, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs text-muted-foreground">
+                          <div className="h-1 w-1 rounded-full bg-emerald-500 mt-1.5" />
+                          {rec}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -234,6 +344,7 @@ export default function AnalysisDetailPage() {
                 <InfoRow label="File Name" value={currentJob.media?.originalName || "N/A"} />
                 <InfoRow label="Type" value={currentJob.media?.type?.toUpperCase() || "N/A"} />
                 <InfoRow label="Size" value={`${((currentJob.media?.size || 0) / (1024 * 1024)).toFixed(2)} MB`} />
+                <InfoRow label="Status" value={currentJob.status.toUpperCase()} />
                 <InfoRow label="Created At" value={new Date(currentJob.createdAt).toLocaleString()} />
               </CardContent>
             </Card>
@@ -243,9 +354,30 @@ export default function AnalysisDetailPage() {
                 <CardTitle className="text-base">Next Steps</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button className="w-full justify-start" variant="outline" size="sm">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add to New Case
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button className="w-full justify-start" variant="outline" size="sm" disabled={!userCases || userCases.rows.length === 0}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add to Case
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Select Case</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {userCases?.rows.map((c: any) => (
+                      <DropdownMenuItem key={c.id} onClick={() => handleAddToCase(c.id)}>
+                        {c.title}
+                      </DropdownMenuItem>
+                    ))}
+                    {(!userCases || userCases.rows.length === 0) && (
+                      <DropdownMenuItem disabled>No active cases</DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
+                <Button className="w-full justify-start" variant="outline" size="sm" onClick={() => navigate("/cases")}>
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Manage Cases
                 </Button>
                 <Button className="w-full justify-start" variant="outline" size="sm">
                   <ShieldAlert className="mr-2 h-4 w-4" />
@@ -302,22 +434,4 @@ function InfoRow({ label, value }: { label: string, value: string }) {
   );
 }
 
-function Plus(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
-  );
-}
+

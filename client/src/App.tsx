@@ -15,6 +15,7 @@ import AnalysisDetailPage from "./pages/AnalysisDetailPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import InvestigatorDashboardPage from "./pages/InvestigatorDashboardPage";
 import ProfilePage from "./pages/ProfilePage";
+import CaseDetailPage from "./pages/CaseDetailPage";
 
 function Router() {
   return (
@@ -51,6 +52,12 @@ function Router() {
       <Route path="/cases">
         <DashboardLayout>
           <InvestigatorDashboardPage />
+        </DashboardLayout>
+      </Route>
+      
+      <Route path="/cases/:id">
+        <DashboardLayout>
+          <CaseDetailPage />
         </DashboardLayout>
       </Route>
       
