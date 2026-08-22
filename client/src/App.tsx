@@ -14,6 +14,7 @@ import AnalyzePage from "./pages/AnalyzePage";
 import AnalysisDetailPage from "./pages/AnalysisDetailPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import InvestigatorDashboardPage from "./pages/InvestigatorDashboardPage";
+import ProfilePage from "./pages/ProfilePage";
 
 function Router() {
   return (
@@ -55,9 +56,7 @@ function Router() {
       
       <Route path="/profile">
         <DashboardLayout>
-          <div className="flex flex-col gap-4">
-            <h1 className="text-2xl font-bold">User Profile</h1>
-          </div>
+          <ProfilePage />
         </DashboardLayout>
       </Route>
 

@@ -42,7 +42,7 @@ export async function processJob(jobId: number) {
       mediaId: media.id,
       authenticityScore: analysis.authenticityScore,
       manipulationProbability: 100 - analysis.authenticityScore,
-      riskLevel: analysis.riskLevel === 'medium' ? 'moderate' : analysis.riskLevel,
+      riskLevel: analysis.riskLevel,
       confidence: 85 + Math.random() * 10,
       modelVersion: "FakeShield-V2-Core",
       summary: analysis.summary,

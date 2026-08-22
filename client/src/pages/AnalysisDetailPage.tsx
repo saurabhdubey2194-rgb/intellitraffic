@@ -15,6 +15,20 @@ export default function AnalysisDetailPage() {
   const jobId = parseInt(id || "0");
   
   const { data: job, refetch: refetchJob } = trpc.analysis.jobStatus.useQuery({ jobId });
+  
+  const downloadMutation = trpc.analysis.downloadReport.useMutation({
+    onSuccess: (data) => {
+      window.open(data.url, '_blank');
+      toast.success("Report generated successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to generate report");
+    }
+  });
+
+  const handleDownload = () => {
+    downloadMutation.mutate({ jobId });
+  };
   const { data: results, isLoading: loadingResults } = trpc.analysis.results.useQuery(
     { jobId },
     { enabled: job?.status === "completed" }
@@ -64,8 +78,13 @@ export default function AnalysisDetailPage() {
             <Share2 className="mr-2 h-4 w-4" />
             Share
           </Button>
-          <Button variant="outline" size="sm">
-            <Download className="mr-2 h-4 w-4" />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleDownload}
+            disabled={downloadMutation.isPending || job.status !== 'completed'}
+          >
+            {downloadMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
             PDF Report
           </Button>
         </div>
