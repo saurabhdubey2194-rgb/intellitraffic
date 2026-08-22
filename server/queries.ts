@@ -6,7 +6,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import { getDb } from "./db";
+import { requireDb } from "./db";
 import {
   users,
   mediaFiles,
@@ -18,12 +18,6 @@ import {
   auditLogs,
   abuseReports,
 } from "../drizzle/schema";
-
-async function requireDb() {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  return db;
-}
 
 // ---------- Users ----------
 export async function listUsers(filters?: {

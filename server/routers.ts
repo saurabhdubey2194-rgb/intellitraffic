@@ -21,17 +21,11 @@ import { ENV } from "./_core/env";
 import { SignJWT } from "jose";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { getDb } from "./db";
+import { requireDb } from "./db";
 import * as q from "./queries";
 import { storagePut } from "./storage";
 import { processJob } from "./worker";
 import { generateAnalysisReport } from "./reports";
-
-async function requireDb() {
-  const db = await getDb();
-  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-  return db;
-}
 
 /**
  * RBAC Middlewares
