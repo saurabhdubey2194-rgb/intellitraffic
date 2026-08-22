@@ -43,7 +43,18 @@ function AuthGuard({ children, roles }: { children: React.ReactNode; roles?: str
     }
   }, [user, loading, navigate, location, roles]);
 
-  if (loading || !user) return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#07111F] flex items-center justify-center">
+        <div className="relative">
+          <div className="h-12 w-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+          <div className="absolute inset-0 blur-xl bg-primary/20 rounded-full animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user) return null;
   return <>{children}</>;
 }
 
@@ -85,6 +96,13 @@ export default function App() {
           </DashboardLayout>
         </AuthGuard>
       </Route>
+      <Route path="/analyses/:id">
+        <AuthGuard>
+          <DashboardLayout>
+            <AnalysisDetailPage />
+          </DashboardLayout>
+        </AuthGuard>
+      </Route>
 
       <Route path="/history">
         <AuthGuard>
@@ -110,6 +128,13 @@ export default function App() {
         </AuthGuard>
       </Route>
 
+      <Route path="/cases/:id">
+        <AuthGuard roles={["investigator", "admin"]}>
+          <DashboardLayout>
+            <CaseDetailPage />
+          </DashboardLayout>
+        </AuthGuard>
+      </Route>
       <Route path="/case/:id">
         <AuthGuard roles={["investigator", "admin"]}>
           <DashboardLayout>

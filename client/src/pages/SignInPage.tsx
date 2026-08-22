@@ -31,10 +31,19 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { refresh } = useAuth();
+
   const signIn = trpc.auth.signInWithPassword.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Neural signature verified. Access granted.");
-      navigate("/dashboard", { replace: true });
+      await refresh();
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get("redirect");
+      if (redirect) {
+        navigate(redirect, { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
     },
     onError: err => {
       setError(err.message);

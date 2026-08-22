@@ -1,0 +1,32 @@
+Audit Report: FakeShield AI Navigation & Authentication
+
+Root Causes Identified:
+1. Session Verification: sdk.verifySession() was rejecting valid JWTs because it strictly required a non-empty 'name' field in the payload, but password sign-in was providing an empty string for users without a name.
+2. OAuth Redirect: registerOAuthRoutes() in oauth.ts always redirected to "/" after successful login, ignoring any original redirect target.
+3. Auth State Race: SignUpPage.tsx was navigating to "/dashboard" immediately on mutation success without waiting for auth.me to refresh, causing AuthGuard to bounce the user back to signin.
+4. Protected Route Bounce: AuthGuard in App.tsx was not correctly handling the redirect back to the intended page after a successful login.
+5. Role-based Navigation: DashboardLayout.tsx was hiding the sidebar for the 'user' role, even though it had valid navigation items.
+6. Dead UI Elements: Several components (AdminUsersPage, AdminScansPage, SubNav) had placeholder interactive elements with no functional handlers.
+
+Plan:
+- Phase 2: Fix Backend Authentication and API endpoints (Fix sdk.ts session payload, fix oauth.ts redirect logic).
+- Phase 3: Fix Frontend Authentication state and Login/Signup flows (Update SignUpPage to wait for auth, fix AuthContext refresh).
+- Phase 4: Fix Global Routing and Protected Routes (Fix AuthGuard redirect logic, ensure all routes render).
+- Phase 5: Fix Navigation UI (Show sidebar for all roles, wire dead buttons and icons).
+- Phase 6: End-to-end testing and final verification.
+
+### Fixes Implemented
+1. **App.tsx AuthGuard**: Replaced `null` return with a professional loading state to prevent blank screens during auth transitions.
+2. **Route Standardization**: Added support for both singular and plural routes (`/case/:id`, `/cases/:id`, `/analysis/:id`, `/analyses/:id`) to ensure all UI links work regardless of convention.
+3. **Sidebar & Footer Navigation**: 
+   - Removed restricted `/investigator` link from the regular user sidebar to prevent "Access Denied" loops.
+   - Wired all "dead" footer buttons (Neural Menu, Documentation, Privacy Protocol) to their functional routes.
+   - Fixed active state highlighting in `SubNav` to handle query parameters correctly.
+4. **Authentication Flow**:
+   - Fixed `server/_core/oauth.ts` to correctly respect the `redirectUri` parameter during login.
+   - Updated `SignUpPage` and `SignInPage` to await auth state refresh before navigating, ensuring the dashboard loads immediately.
+   - Updated `main.tsx` to redirect `UNAUTHORIZED` TRPC errors to the custom `/signin` page instead of the default OAuth flow.
+5. **UI & Stats**:
+   - Replaced placeholder stats in `AdminDashboardPage` with real database aggregates.
+   - Fixed DOM nesting errors in `Home.tsx` and layout issues in `SettingsPage`.
+   - Added role-specific navigation in `SignInPage` (Admin -> Command Center, Investigator -> Case Manager).

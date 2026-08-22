@@ -67,10 +67,14 @@ export default function SignUpPage() {
     }
   });
 
+  const { refresh } = useAuth();
+
   const signUp = trpc.auth.signUp.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Identity initialized. Welcome to the Matrix.");
       sendVerification.mutate();
+      // Force refresh auth state before navigating
+      await refresh();
       navigate("/dashboard", { replace: true });
     },
     onError: (err: any) => {
@@ -81,7 +85,10 @@ export default function SignUpPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate("/dashboard", { replace: true });
+      // Check if there's a redirect parameter
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get("redirect");
+      navigate(redirect || "/dashboard", { replace: true });
     }
   }, [user, loading, navigate]);
 

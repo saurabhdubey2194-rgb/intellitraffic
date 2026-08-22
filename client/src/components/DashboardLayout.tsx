@@ -43,7 +43,6 @@ const ROLE_NAV: Record<string, NavItem[]> = {
   user: [
     { icon: LayoutDashboard, label: "Workspace", path: "/dashboard" },
     { icon: Activity, label: "Analysis History", path: "/history" },
-    { icon: ShieldCheck, label: "My Cases", path: "/investigator" },
     { icon: Bell, label: "Notifications", path: "/notifications" },
     { icon: FileText, label: "Forensic Reports", path: "/reports" },
     { icon: Shield, label: "Threat Intel", path: "/threat-intelligence" },
@@ -181,7 +180,7 @@ function DashboardLayoutContent({
     };
   }, [isResizing, setSidebarWidth]);
 
-  const showSidebar = (role === "admin" || role === "investigator") && !isMobile;
+  const showSidebar = !isMobile;
 
   const handleJoinThreatAlerts = () => {
     if (!threatEmail || !threatEmail.includes("@")) {
@@ -268,8 +267,8 @@ function DashboardLayoutContent({
             <ul className="space-y-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               <li><button onClick={() => setLocation("/features")} className="hover:text-primary transition-colors flex items-center gap-2 text-left"><Zap className="h-3 w-3" /> Capabilities</button></li>
               <li><button onClick={() => setLocation("/pricing")} className="hover:text-primary transition-colors flex items-center gap-2 text-left"><CreditCard className="h-3 w-3" /> Subscriptions</button></li>
-              <li><button onClick={() => setLocation("/faq")} className="hover:text-primary transition-colors flex items-center gap-2 text-left">Documentation</button></li>
-              <li><button onClick={() => setLocation("/faq")} className="hover:text-primary transition-colors flex items-center gap-2 text-left"><ShieldCheck className="h-3 w-3" /> Privacy Protocol</button></li>
+              <li><button onClick={() => setLocation("/faq#docs")} className="hover:text-primary transition-colors flex items-center gap-2 text-left">Documentation</button></li>
+              <li><button onClick={() => setLocation("/faq#privacy")} className="hover:text-primary transition-colors flex items-center gap-2 text-left"><ShieldCheck className="h-3 w-3" /> Privacy Protocol</button></li>
             </ul>
           </div>
           <div>

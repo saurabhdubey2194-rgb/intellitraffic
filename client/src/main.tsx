@@ -14,11 +14,12 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
   if (typeof window === "undefined") return;
 
-  const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
+  const isUnauthorized = error.message === UNAUTHED_ERR_MSG || error.data?.code === "UNAUTHORIZED";
 
   if (!isUnauthorized) return;
 
-  startLogin();
+  // Instead of OAuth startLogin, redirect to our custom signin page
+  window.location.href = `/signin?redirect=${encodeURIComponent(window.location.pathname)}`;
 };
 
 queryClient.getQueryCache().subscribe(event => {

@@ -148,7 +148,7 @@ export default function ProfilePage() {
               <div className="h-full w-[65%] bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
             </div>
             <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-muted-foreground">
-              <span>Standard Access</span>
+              <span>Standard Access ({user?.role})</span>
               <span className="text-primary">Upgrade to Enterprise for Full Spectrum</span>
             </div>
           </div>

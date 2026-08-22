@@ -1,4 +1,3 @@
-import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { eq, desc, and, like, or, sql, gt, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -24,6 +23,7 @@ import { ENV } from "./_core/env";
 import { SignJWT } from "jose";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { COOKIE_NAME, ONE_YEAR_MS } from "../shared/const";
 import { requireDb } from "./db";
 import * as q from "./queries";
 import { storagePut } from "./storage";
@@ -54,7 +54,7 @@ const authRouter = router({
   me: publicProcedure.query(opts => opts.ctx.user),
   logout: publicProcedure.mutation(({ ctx }) => {
     const cookieOptions = getSessionCookieOptions(ctx.req);
-    ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+    ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: 0 });
     return { success: true } as const;
   }),
   signUp: publicProcedure

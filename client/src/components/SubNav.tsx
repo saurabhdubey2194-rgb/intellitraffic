@@ -21,7 +21,7 @@ export function SubNav() {
     <nav className="h-12 border-b border-white/5 bg-black/80 backdrop-blur-xl sticky top-20 z-40 hidden md:block overflow-hidden">
       <div className="container h-full flex items-center gap-8 overflow-x-auto no-scrollbar">
         <button 
-          onClick={() => toast.info("Forensic category menu initialized.")}
+          onClick={() => setLocation("/analyze")}
           className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-[0.2em] hover:text-primary transition-colors shrink-0"
         >
           <Menu className="h-4 w-4" />
