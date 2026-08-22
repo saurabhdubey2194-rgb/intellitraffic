@@ -1,14 +1,5 @@
 /**
- * Public sign-up page — IntelliTraffic account creation.
- *
- * Flow per brief: create account (name/email/phone/password) → success toast →
- * redirect to /choose-access-type. A signed-in visitor is forwarded to
- * /choose-access-type if they have not completed role registration, otherwise to
- * their verified role dashboard.
- *
- * Security note: role selection never happens here. The account is created as
- * role "public"; authorization is granted only after the user completes the
- * role-specific registration at /choose-access-type and a host verifies it.
+ * Public sign-up page — FakeShield AI account creation.
  */
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,32 +7,23 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useRole } from "@/components/RoleShell";
 import { trpc } from "@/lib/trpc";
 import {
-  Ambulance,
   ArrowLeft,
-  Building2,
   Eye,
   EyeOff,
   Loader2,
-  Radio,
   ShieldCheck,
-  TrafficCone,
+  Shield,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
-const INDIAN_PHONE = /^\+?(\d{1,4})?[\s\-]?(\(?\d{4,5}\)?)[\s\-]?(\d{4,6})?[\s\-]?(\d{0,4})$/;
-const hasAtLeastNDigits = (s: string, n: number) => (s.match(/\d/g) ?? []).length >= n;
-
 /** Friendly per-field validation, returns the first failing field or null. */
 function validate(form: FormState): { field?: keyof FormState; message: string } | null {
   if (form.name.trim().length < 2) return { field: "name", message: "Full name must be at least 2 characters." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return { field: "email", message: "Enter a valid email address." };
-  if (!hasAtLeastNDigits(form.phone, 10) || !/^[\d\s+\-()]{7,16}$/.test(form.phone.trim()))
-    return { field: "phone", message: "Enter a valid Indian phone number (10 digits, e.g. 98XXX XXXXX)." };
   if (form.password.length < 8) return { field: "password", message: "Password must be at least 8 characters." };
   if (form.password !== form.confirmPassword)
     return { field: "confirmPassword", message: "Passwords do not match." };
@@ -51,7 +33,6 @@ function validate(form: FormState): { field?: keyof FormState; message: string }
 interface FormState {
   name: string;
   email: string;
-  phone: string;
   password: string;
   confirmPassword: string;
 }
@@ -59,12 +40,10 @@ interface FormState {
 export default function SignUpPage() {
   const { user, loading } = useAuth();
   const [, navigate] = useLocation();
-  const signedRole = useRole(user);
 
   const [form, setForm] = useState<FormState>({
     name: "",
     email: "",
-    phone: "",
     password: "",
     confirmPassword: "",
   });
@@ -80,16 +59,15 @@ export default function SignUpPage() {
   const signUp = trpc.auth.signUp.useMutation({
     onSuccess: () => {
       toast.success("Account created successfully!");
-      navigate("/choose-access-type", { replace: true });
+      navigate("/dashboard", { replace: true });
     },
-    onError: err => {
+    onError: (err: any) => {
       setError(err.message);
     },
   });
 
-  // Signed-in users go straight to choose access type (or their dashboard).
-  if (!loading && user && signedRole === "public") {
-    navigate("/choose-access-type", { replace: true });
+  if (!loading && user) {
+    navigate("/dashboard", { replace: true });
     return null;
   }
 
@@ -108,19 +86,13 @@ export default function SignUpPage() {
       return;
     }
     if (availability.data?.emailAvailable === false) {
-      setError("This email is already registered. Please use another email address or sign in.");
+      setError("This email is already registered.");
       setFieldErrors(prev => ({ ...prev, email: "Email already registered" }));
-      return;
-    }
-    if (availability.data?.phoneAvailable === false) {
-      setError("This phone number is already registered.");
-      setFieldErrors(prev => ({ ...prev, phone: "Phone already registered" }));
       return;
     }
     signUp.mutate({
       name: form.name.trim(),
       email: form.email.trim().toLowerCase(),
-      phone: form.phone.trim(),
       password: form.password,
     });
   };
@@ -132,15 +104,15 @@ export default function SignUpPage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <header className="border-b border-border/60 bg-[#0b1526]">
         <div className="container flex items-center justify-center gap-3 py-6">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-400/25">
-            <Radio className="h-6 w-6 text-emerald-400" aria-hidden="true" />
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-400/25">
+            <Shield className="h-6 w-6 text-blue-400" aria-hidden="true" />
           </div>
           <div className="text-center">
             <p className="text-xl font-extrabold tracking-tight">
-              Intelli<span className="text-emerald-400">Traffic</span>
+              FakeShield <span className="text-blue-400">AI</span>
             </p>
             <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
-              Smart Roads. Faster Emergencies. Safer Cities.
+              Digital Authenticity. Powered by AI.
             </p>
           </div>
         </div>
@@ -153,13 +125,13 @@ export default function SignUpPage() {
           className="mb-6 -ml-2 text-muted-foreground hover:text-foreground"
           onClick={() => navigate("/signin")}
         >
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back to access types
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back to sign in
         </Button>
 
         <div className="text-center mb-8">
           <h1 className="text-2xl md:text-3xl font-bold mb-2">Create your account</h1>
           <p className="text-sm text-muted-foreground">
-            Sign up to use IntelliTraffic — then choose how you want to access it.
+            Sign up to start analyzing media for digital manipulation.
           </p>
         </div>
 
@@ -169,7 +141,7 @@ export default function SignUpPage() {
               <Label htmlFor="signup-name" className="text-sm font-semibold">
                 Full Name <span className="text-red-400">*</span>
               </Label>
-              <Input id="signup-name" className={inputCls("name")} placeholder="e.g. Rahul Gupta" value={form.name} onChange={set("name")} aria-invalid={Boolean(fieldErrors.name)} />
+              <Input id="signup-name" className={inputCls("name")} placeholder="e.g. John Doe" value={form.name} onChange={set("name")} aria-invalid={Boolean(fieldErrors.name)} />
               {fieldErrors.name && <p className="text-xs text-red-400">{fieldErrors.name}</p>}
             </div>
 
@@ -193,28 +165,6 @@ export default function SignUpPage() {
                   Email already registered
                 </Badge>
               )}
-              {availability.data?.emailAvailable === true && (
-                <Badge variant="outline" className="border-emerald-400/50 text-emerald-400 text-[10px]">
-                  Email available
-                </Badge>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="signup-phone" className="text-sm font-semibold">
-                Phone Number <span className="text-red-400">*</span>
-              </Label>
-              <Input
-                id="signup-phone"
-                type="tel"
-                autoComplete="tel"
-                className={inputCls("phone")}
-                placeholder="+91 98XXX XXXXX"
-                value={form.phone}
-                onChange={set("phone")}
-                aria-invalid={Boolean(fieldErrors.phone)}
-              />
-              {fieldErrors.phone && <p className="text-xs text-red-400">{fieldErrors.phone}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -261,7 +211,7 @@ export default function SignUpPage() {
               {fieldErrors.confirmPassword && <p className="text-xs text-red-400">{fieldErrors.confirmPassword}</p>}
             </div>
 
-            {error && !fieldErrors.password && !fieldErrors.name && !fieldErrors.email && !fieldErrors.phone && !fieldErrors.confirmPassword && (
+            {error && !fieldErrors.password && !fieldErrors.name && !fieldErrors.email && !fieldErrors.confirmPassword && (
               <div className="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-xs text-red-300" role="alert">
                 {error}
               </div>
@@ -276,46 +226,17 @@ export default function SignUpPage() {
           <div className="mt-6 border-t border-border/60 pt-4 space-y-2 text-[11px] text-muted-foreground leading-relaxed">
             <p>
               Already have an account?{" "}
-              <button type="button" className="text-emerald-400 underline-offset-2 hover:underline" onClick={() => navigate("/signin")}>
-                Choose access type & sign in
+              <button type="button" className="text-blue-400 underline-offset-2 hover:underline" onClick={() => navigate("/signin")}>
+                Sign in
               </button>
-            </p>
-            <p>
-              Your password is hashed securely before storage. Signing up creates a
-              general account — you'll pick your access type (Ambulance, Police or
-              Hospital) on the next step.
-            </p>
-            <p className="flex items-center gap-1.5">
-              <ShieldCheck className="h-3 w-3 shrink-0 text-emerald-400" />
-              Role selection never grants access — verified-role permissions are
-              enforced on the backend.
             </p>
           </div>
         </Card>
-
-        <div className="mt-8 grid grid-cols-3 gap-2 text-center">
-          <MiniRole icon={Ambulance} label="Ambulance" color="text-red-400" />
-          <MiniRole icon={TrafficCone} label="Police" color="text-sky-400" />
-          <MiniRole icon={Building2} label="Hospital" color="text-emerald-400" />
-        </div>
       </main>
 
       <footer className="border-t border-border/60 py-5 text-center text-[11px] text-muted-foreground">
-        <p>
-          IntelliTraffic — traffic data shown is a demonstration prototype. This is
-          not a replacement for official emergency services. In a real emergency,
-          call 112.
-        </p>
+        <p>FakeShield AI — Digital Authenticity Platform</p>
       </footer>
-    </div>
-  );
-}
-
-function MiniRole({ icon: Icon, label, color }: { icon: typeof Ambulance; label: string; color: string }) {
-  return (
-    <div className="rounded-xl border border-border/60 bg-card px-2 py-3">
-      <Icon className={`h-5 w-5 mx-auto mb-1 ${color}`} aria-hidden="true" />
-      <p className="text-[10px] font-semibold uppercase tracking-wide">{label}</p>
     </div>
   );
 }

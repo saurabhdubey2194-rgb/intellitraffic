@@ -2,28 +2,26 @@ import { TRPCError } from "@trpc/server";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import type { TrpcContext } from "./_core/context";
 
-type IntelliTrafficRole = "public" | "ambulance" | "police" | "hospital" | "host";
+type FakeShieldRole = "user" | "investigator" | "admin";
 
-const INTELLITRAFFIC_ROLES: IntelliTrafficRole[] = [
-  "public",
-  "ambulance",
-  "police",
-  "hospital",
-  "host",
+const FAKESHIELD_ROLES: FakeShieldRole[] = [
+  "user",
+  "investigator",
+  "admin",
 ];
 
-function requireRole(...roles: IntelliTrafficRole[]) {
+function requireRole(...roles: FakeShieldRole[]) {
   return protectedProcedure.use(async opts => {
     const { ctx, next } = opts;
     const user = ctx.user;
     if (!user) {
       throw new TRPCError({ code: "UNAUTHORIZED", message: "Not signed in" });
     }
-    if (user.role === "host" || user.role === "admin") {
-      // Host/admin bypasses all role gates (full platform authority)
+    if (user.role === "admin") {
+      // Admin bypasses all role gates
       return next({ ctx: { ...ctx, user } });
     }
-    if (!roles.includes(user.role as IntelliTrafficRole)) {
+    if (!roles.includes(user.role as FakeShieldRole)) {
       throw new TRPCError({
         code: "FORBIDDEN",
         message: `Access denied. This feature is restricted to: ${roles.join(", ")}`,
@@ -37,12 +35,11 @@ function requireVerification() {
   return protectedProcedure.use(async opts => {
     const { ctx, next } = opts;
     const user = opts.ctx.user;
-    if (!user || (user as TrpcContext["user"]) === null) {
+    if (!user) {
       throw new TRPCError({ code: "UNAUTHORIZED", message: "Not signed in" });
     }
     const verified =
-      user.role === "host" ||
-      user.role === "public" ||
+      user.role === "admin" ||
       user.verificationStatus === "verified";
     if (!verified) {
       throw new TRPCError({
@@ -55,21 +52,17 @@ function requireVerification() {
   });
 }
 
-export const roleProcedure = (roles: IntelliTrafficRole[]) => requireRole(...roles);
-export const verifiedProcedure = roleProcedure(["public", "ambulance", "police", "hospital"]);
-export const ambulanceProcedure = requireRole("ambulance");
-export const policeProcedure = requireRole("police");
-export const hospitalProcedure = requireRole("hospital");
-export const hostProcedure = requireRole("host");
-export const publicOrAny = protectedProcedure;
+export const investigatorProcedure = requireRole("investigator");
+export const adminProcedure = requireRole("admin");
+export const verifiedProcedure = requireVerification();
 
-export function requireHost(ctx: TrpcContext) {
-  if (!ctx.user || ctx.user.role !== "host") {
+export function requireAdmin(ctx: TrpcContext) {
+  if (!ctx.user || ctx.user.role !== "admin") {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Host/admin authorization required",
+      message: "Admin authorization required",
     });
   }
 }
 
-export { INTELLITRAFFIC_ROLES, router, protectedProcedure, publicProcedure };
+export { FAKESHIELD_ROLES, router, protectedProcedure, publicProcedure };

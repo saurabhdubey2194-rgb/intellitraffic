@@ -5,20 +5,20 @@ import { auditLogs } from "../drizzle/schema";
 export async function audit(
   ctx: TrpcContext,
   action: string,
-  targetType: string,
-  targetId: string,
-  details?: string
+  resourceType: string,
+  resourceId: string,
+  metadata?: string
 ) {
   const db = await getDb();
   if (!db) return;
   try {
     await db.insert(auditLogs).values({
-      actorUserId: ctx.user?.id ?? null,
-      actorRole: ctx.user?.role ?? null,
+      userId: ctx.user?.id ?? null,
       action,
-      targetType,
-      targetId,
-      details: details ?? null,
+      resourceType,
+      resourceId,
+      metadata: metadata ?? null,
+      ipAddress: ctx.req.ip ?? null,
     });
   } catch (err) {
     console.warn("[Audit] Failed to write audit log:", err);

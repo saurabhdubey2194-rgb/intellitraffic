@@ -1,0 +1,20 @@
+-- Custom migration to drop all old IntelliTraffic tables
+DROP TABLE IF EXISTS `abuse_reports`;
+DROP TABLE IF EXISTS `activity_logs`;
+DROP TABLE IF EXISTS `ambulance_documents`;
+DROP TABLE IF EXISTS `ambulances`;
+DROP TABLE IF EXISTS `auditLogs`;
+DROP TABLE IF EXISTS `emergencyCorridors`;
+DROP TABLE IF EXISTS `emergencyRequests`;
+DROP TABLE IF EXISTS `hospitals`;
+DROP TABLE IF EXISTS `notifications`;
+DROP TABLE IF EXISTS `policeStations`;
+DROP TABLE IF EXISTS `roadSegments`;
+DROP TABLE IF EXISTS `routes`;
+DROP TABLE IF EXISTS `savedRoutes`;
+DROP TABLE IF EXISTS `signal_events`;
+DROP TABLE IF EXISTS `systemSettings`;
+DROP TABLE IF EXISTS `trafficIncidents`;
+DROP TABLE IF EXISTS `trafficSignals`;
+DROP TABLE IF EXISTS `user_passwords`;
+DROP TABLE IF EXISTS `users`;

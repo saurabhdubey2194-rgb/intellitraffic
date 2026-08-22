@@ -20,32 +20,22 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
-  Ambulance,
   Activity,
-  AlertTriangle,
   Bell,
-  Bot,
-  ClipboardList,
-  Crown,
-  Database,
-  FileSearch,
   History,
   Home,
-  Hospital,
-  Landmark,
   LogOut,
-  Map as MapIcon,
-  MapPin,
   PanelLeft,
   Settings,
   Shield,
-  Siren,
-  TrafficCone,
   User,
+  FileSearch,
   Users,
+  LayoutDashboard,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -60,88 +50,36 @@ export type NavItem = {
 };
 
 export const ROLE_NAV: Record<string, NavItem[]> = {
-  public: [
-    { icon: Home, label: "Home", path: "/dashboard" },
-    { icon: MapIcon, label: "Map", path: "/map" },
-    { icon: MapPin, label: "Routes", path: "/routes" },
-    { icon: Bell, label: "Alerts", path: "/alerts" },
-    { icon: History, label: "Activity", path: "/history" },
+  user: [
+    { icon: LayoutDashboard, label: "Workspace", path: "/dashboard" },
+    { icon: Activity, label: "Analysis History", path: "/history" },
+    { icon: ShieldCheck, label: "My Cases", path: "/cases" },
     { icon: User, label: "Profile", path: "/profile" },
   ],
-  ambulance: [
-    { icon: Home, label: "Home", path: "/dashboard" },
-    { icon: Siren, label: "Emergency", path: "/emergency" },
-    { icon: MapPin, label: "Route", path: "/routes" },
-    { icon: Bell, label: "Alerts", path: "/alerts" },
-    { icon: History, label: "Activity", path: "/history-ambulance" },
-    { icon: Ambulance, label: "Profile", path: "/profile" },
+  investigator: [
+    { icon: LayoutDashboard, label: "Console", path: "/dashboard" },
+    { icon: FileSearch, label: "Active Queue", path: "/queue" },
+    { icon: ShieldCheck, label: "Case Manager", path: "/cases" },
+    { icon: History, label: "Audit Logs", path: "/audit" },
+    { icon: User, label: "Profile", path: "/profile" },
   ],
-  police: [
-    { icon: Activity, label: "Command", path: "/dashboard" },
-    { icon: ClipboardList, label: "Requests", path: "/requests" },
-    { icon: MapIcon, label: "Map", path: "/map" },
-    { icon: Bell, label: "Alerts", path: "/alerts" },
-    { icon: History, label: "Activity", path: "/history-police" },
-    { icon: Shield, label: "Profile", path: "/profile" },
-  ],
-  hospital: [
-    { icon: Home, label: "Home", path: "/dashboard" },
-    { icon: Siren, label: "Emergencies", path: "/emergencies" },
-    { icon: Ambulance, label: "Ambulances", path: "/ambulances" },
-    { icon: Bell, label: "Alerts", path: "/alerts" },
-    { icon: History, label: "Activity", path: "/history-hospital" },
-    { icon: Hospital, label: "Profile", path: "/profile" },
-  ],
-  host: [
-    { icon: Activity, label: "Dashboard", path: "/dashboard" },
-    { icon: Users, label: "Users", path: "/admin/users" },
-    { icon: FileSearch, label: "Verification", path: "/admin/verification" },
-    { icon: TrafficCone, label: "Traffic", path: "/admin/traffic" },
-    { icon: SignalIcon, label: "Signals", path: "/admin/signals" },
-    { icon: MapIcon, label: "Maps", path: "/map" },
-    { icon: Ambulance, label: "Ambulances", path: "/admin/ambulances" },
-    { icon: Hospital, label: "Hospitals", path: "/admin/hospitals" },
-    { icon: Landmark, label: "Police", path: "/admin/police" },
-    { icon: Siren, label: "Emergencies", path: "/admin/emergencies" },
-    { icon: AlertTriangle, label: "Incidents", path: "/admin/incidents" },
-    { icon: History, label: "Routes", path: "/admin/routes" },
-    { icon: Bot, label: "Analytics", path: "/admin/analytics" },
-    { icon: Crown, label: "Activity Center", path: "/history-admin" },
-    { icon: Shield, label: "Audit Logs", path: "/admin/audit" },
-    { icon: Settings, label: "Settings", path: "/admin/settings" },
-    { icon: Database, label: "Data Center", path: "/admin/data" },
+  admin: [
+    { icon: LayoutDashboard, label: "Command Center", path: "/dashboard" },
+    { icon: Users, label: "User Management", path: "/admin/users" },
+    { icon: Activity, label: "System Health", path: "/admin/health" },
+    { icon: Shield, label: "Security Logs", path: "/admin/audit" },
+    { icon: AlertTriangle, label: "Abuse Reports", path: "/admin/abuse" },
+    { icon: Settings, label: "Platform Settings", path: "/admin/settings" },
   ],
 };
 
-function SignalIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <svg
-      className={className}
-      style={style}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="6" y="2" width="12" height="20" rx="2" />
-      <circle cx="12" cy="7" r="2" />
-      <circle cx="12" cy="12" r="2" />
-      <circle cx="12" cy="17" r="2" />
-    </svg>
-  );
-}
-
-const SIDEBAR_WIDTH_KEY = "sidebar-width";
+const SIDEBAR_WIDTH_KEY = "fs-sidebar-width";
 const DEFAULT_WIDTH = 256;
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 360;
 
 function roleForUser(user: { role?: string | null } | null | undefined): string {
-  const r = user?.role;
-  if (r === "admin" || r === "host") return "host";
-  return r || "public";
+  return user?.role || "user";
 }
 
 export default function DashboardLayout({
@@ -154,6 +92,7 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -170,16 +109,16 @@ export default function DashboardLayout({
           <div className="flex flex-col items-center gap-6">
             <LogoMark />
             <h1 className="text-2xl font-bold tracking-tight text-center">
-              Sign in to IntelliTraffic
+              Sign in to FakeShield AI
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Access to this dashboard requires authentication. Sign in with your account.
+              Access to the analysis workspace requires authentication.
             </p>
           </div>
           <Button
-            onClick={() => startLogin()}
+            onClick={() => navigate("/signin")}
             size="lg"
-            className="w-full shadow-lg hover:shadow-xl transition-all"
+            className="w-full shadow-lg hover:shadow-xl transition-all bg-blue-600 hover:bg-blue-500"
           >
             Sign in
           </Button>
@@ -215,14 +154,8 @@ function DashboardLayoutContent({
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const role = roleForUser(user);
-  const menuItems = ROLE_NAV[role] || ROLE_NAV.public;
+  const menuItems = ROLE_NAV[role] || ROLE_NAV.user;
   const isMobile = useIsMobile();
-
-  // Redirect to role dashboard if not logged in yet... no-op: handled above.
-
-  useEffect(() => {
-    if (isCollapsed) setIsResizing(false);
-  }, [isCollapsed]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -268,7 +201,7 @@ function DashboardLayoutContent({
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="font-bold tracking-tight truncate text-base">
-                    Intelli<span className="text-emerald-400">Traffic</span>
+                    FakeShield <span className="text-blue-400">AI</span>
                   </span>
                   <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider bg-accent text-accent-foreground rounded px-2 py-0.5 whitespace-nowrap">
                     {ROLE_LABEL[role]}
@@ -306,16 +239,11 @@ function DashboardLayoutContent({
           </SidebarContent>
 
           <SidebarFooter className="p-3">
-            <div className="rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2 mb-2 group-data-[collapsible=icon]:hidden">
-              <p className="text-[11px] text-muted-foreground">
-                Demo / simulated traffic data. Real signal control requires municipal integration.
-              </p>
-            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <Avatar className="h-9 w-9 border border-white/10 shrink-0">
-                    <AvatarFallback className="text-xs font-medium bg-primary text-primary-foreground">
+                    <AvatarFallback className="text-xs font-medium bg-blue-600 text-white">
                       {user?.name?.charAt(0).toUpperCase() || "?"}
                     </AvatarFallback>
                   </Avatar>
@@ -358,7 +286,7 @@ function DashboardLayoutContent({
               <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
               <div className="flex items-center gap-3">
                 <span className="tracking-tight text-foreground text-sm font-semibold">
-                  {activeMenuItem?.label ?? "IntelliTraffic"}
+                  {activeMenuItem?.label ?? "FakeShield AI"}
                 </span>
               </div>
             </div>
@@ -379,8 +307,8 @@ function DashboardLayoutContent({
 export function LogoMark({ className }: { className?: string }) {
   return (
     <div className={`flex items-center justify-center ${className ?? ""}`}>
-      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-        <Siren className="h-4 w-4 text-slate-900" />
+      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+        <Shield className="h-4 w-4 text-white" />
       </div>
     </div>
   );
