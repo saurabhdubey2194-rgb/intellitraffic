@@ -188,6 +188,20 @@ export const apiUsage = mysqlTable("fs_api_usage", {
 });
 
 /**
+ * Monthly usage quotas and limits for users.
+ */
+export const usageQuotas = mysqlTable("fs_usage_quotas", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  plan: mysqlEnum("plan", ["free", "pro", "enterprise"]).default("free").notNull(),
+  monthlyLimit: int("monthlyLimit").default(5).notNull(),
+  currentUsage: int("currentUsage").default(0).notNull(),
+  resetDate: datetime("resetDate").notNull(),
+  createdAt: datetime("createdAt").default(new Date()).notNull(),
+  updatedAt: datetime("updatedAt").default(new Date()).notNull(),
+});
+
+/**
  * System audit logs for security and compliance.
  */
 export const auditLogs = mysqlTable("fs_audit_logs", {

@@ -3,92 +3,120 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, MoreHorizontal, UserCheck, UserX, Shield } from "lucide-react";
+import { Search, Filter, UserCheck, UserX, Shield, MoreHorizontal, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 export default function AdminUsersPage() {
   const { data: users, isLoading } = trpc.admin.listUsers.useQuery({ limit: 50 });
 
+  const handleAction = (action: string, userName: string) => {
+    toast.info(`Neural command '${action}' issued for node: ${userName}`);
+  };
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-        <p className="text-muted-foreground">Manage platform users, roles, and access permissions.</p>
+    <div className="space-y-12 pb-20">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-white/5">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-[0.2em]">
+            <Shield className="h-3 w-3" />
+            Admin Command Center
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight font-rajdhani uppercase text-white">User <span className="text-primary">Management</span></h1>
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Manage platform nodes, roles, and neural access permissions.</p>
+        </div>
       </div>
 
-      <Card className="border-border/40 bg-black/20 backdrop-blur-sm">
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <CardTitle>Platform Users</CardTitle>
-              <CardDescription>A list of all registered users and their current status.</CardDescription>
+      <Card className="border-white/5 bg-card/30 backdrop-blur-sm rounded-3xl overflow-hidden">
+        <CardHeader className="p-8 border-b border-white/5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-1">
+              <CardTitle className="font-rajdhani text-2xl uppercase tracking-tight text-white">Platform Nodes</CardTitle>
+              <CardDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">A comprehensive list of all registered neural identities.</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search users..." className="pl-9 w-[200px] md:w-[300px] bg-white/5 border-border/40" />
+            <div className="flex items-center gap-3">
+              <div className="relative group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input placeholder="Search identities..." className="pl-10 h-10 w-[200px] md:w-[300px] bg-white/5 border-white/5 rounded-xl text-[10px] font-bold uppercase tracking-widest focus:border-primary/50 text-white" />
               </div>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl border-white/10 hover:bg-white/5">
                 <Filter className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent border-border/40">
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+              <TableRow className="hover:bg-transparent border-white/5">
+                <TableHead className="px-8 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Identity Node</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Access Role</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Neural Status</TableHead>
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Initialization</TableHead>
+                <TableHead className="text-right px-8 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Command</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                [1, 2, 3].map(i => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={5} className="h-12 animate-pulse bg-white/5" />
+                [1, 2, 3, 4, 5].map(i => (
+                  <TableRow key={i} className="border-white/5">
+                    <TableCell colSpan={5} className="h-16 px-8">
+                      <div className="h-4 w-full bg-white/5 animate-pulse rounded-lg" />
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 users?.rows.map((user: any) => (
-                  <TableRow key={user.id} className="border-border/20 group hover:bg-white/5">
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-sm">{user.name}</span>
-                        <span className="text-xs text-muted-foreground">{user.email}</span>
+                  <TableRow key={user.id} className="border-white/5 group hover:bg-white/5 transition-all">
+                    <TableCell className="px-8 py-6">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold text-[10px] uppercase tracking-widest text-white group-hover:text-primary transition-colors">{user.name}</span>
+                        <span className="text-[8px] font-black text-muted-foreground uppercase tracking-tighter">{user.email}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={`capitalize ${
-                        user.role === 'admin' ? 'border-purple-500/50 text-purple-400 bg-purple-500/10' : 
-                        user.role === 'investigator' ? 'border-blue-500/50 text-blue-400 bg-blue-500/10' : 
-                        'border-border/50'
+                      <Badge variant="outline" className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border-white/10 ${
+                        user.role === 'admin' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 
+                        user.role === 'investigator' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 
+                        'text-muted-foreground'
                       }`}>
                         {user.role}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 bg-emerald-500/10">
-                        Active
+                      <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                        Active Node
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                       {format(new Date(user.createdAt), "MMM d, yyyy")}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" title="Verify User">
-                          <UserCheck className="h-4 w-4 text-emerald-500" />
+                    <TableCell className="text-right px-8">
+                      <div className="flex justify-end gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 rounded-lg hover:bg-emerald-500/10 hover:text-emerald-400"
+                          onClick={() => handleAction("VERIFY", user.name)}
+                        >
+                          <UserCheck className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" title="Manage Role">
-                          <Shield className="h-4 w-4 text-blue-500" />
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 rounded-lg hover:bg-blue-500/10 hover:text-blue-400"
+                          onClick={() => handleAction("ELEVATE", user.name)}
+                        >
+                          <Shield className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" title="Suspend User">
-                          <UserX className="h-4 w-4 text-red-500" />
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-9 w-9 rounded-lg hover:bg-red-500/10 hover:text-red-400"
+                          onClick={() => handleAction("TERMINATE", user.name)}
+                        >
+                          <UserX className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>

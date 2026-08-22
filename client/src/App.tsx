@@ -1,5 +1,3 @@
-import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -9,12 +7,14 @@ import SignInPage from "./pages/SignInPage";
 import SignUpPage from "./pages/SignUpPage";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
+import SettingsPage from "./pages/SettingsPage";
 import HistoryPage from "./pages/HistoryPage";
-import AnalyzePage from "./pages/AnalyzePage";
+import SearchResultsPage from "./pages/SearchResultsPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import AnalysisDetailPage from "./pages/AnalysisDetailPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import InvestigatorDashboardPage from "./pages/InvestigatorDashboardPage";
-import ProfilePage from "./pages/ProfilePage";
+import AnalyzePage from "./pages/AnalyzePage";
 import CaseDetailPage from "./pages/CaseDetailPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import AdminScansPage from "./pages/AdminScansPage";
@@ -22,9 +22,12 @@ import AdminModelsPage from "./pages/AdminModelsPage";
 import AdminLogsPage from "./pages/AdminLogsPage";
 import AdminSystemPage from "./pages/AdminSystemPage";
 import ThreatIntelligencePage from "./pages/ThreatIntelligencePage";
-import SettingsPage from "./pages/SettingsPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import FeaturesPage from "./pages/FeaturesPage";
+import PricingPage from "./pages/PricingPage";
+import FAQPage from "./pages/FAQPage";
+import ProfilePage from "./pages/ProfilePage";
 
 function Router() {
   return (
@@ -34,6 +37,22 @@ function Router() {
       <Route path="/signup" component={SignUpPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
+      
+      <Route path="/features">
+        <DashboardLayout>
+          <FeaturesPage />
+        </DashboardLayout>
+      </Route>
+      <Route path="/pricing">
+        <DashboardLayout>
+          <PricingPage />
+        </DashboardLayout>
+      </Route>
+      <Route path="/faq">
+        <DashboardLayout>
+          <FAQPage />
+        </DashboardLayout>
+      </Route>
       
       {/* Workspace routes */}
       <Route path="/dashboard">
@@ -60,7 +79,19 @@ function Router() {
         </DashboardLayout>
       </Route>
       
-      <Route path="/cases">
+      <Route path="/threat-intelligence">
+        <DashboardLayout>
+          <ThreatIntelligencePage />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/search">
+        <DashboardLayout>
+          <SearchResultsPage />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/investigator">
         <DashboardLayout>
           <InvestigatorDashboardPage />
         </DashboardLayout>
@@ -84,40 +115,34 @@ function Router() {
           <AdminDashboardPage />
         </DashboardLayout>
       </Route>
-
+      
       <Route path="/admin/users">
         <DashboardLayout>
           <AdminUsersPage />
         </DashboardLayout>
       </Route>
-
+      
       <Route path="/admin/scans">
         <DashboardLayout>
           <AdminScansPage />
         </DashboardLayout>
       </Route>
-
+      
       <Route path="/admin/models">
         <DashboardLayout>
           <AdminModelsPage />
         </DashboardLayout>
       </Route>
-
+      
       <Route path="/admin/logs">
         <DashboardLayout>
           <AdminLogsPage />
         </DashboardLayout>
       </Route>
-
+      
       <Route path="/admin/system">
         <DashboardLayout>
           <AdminSystemPage />
-        </DashboardLayout>
-      </Route>
-
-      <Route path="/threat-intelligence">
-        <DashboardLayout>
-          <ThreatIntelligencePage />
         </DashboardLayout>
       </Route>
 
@@ -129,7 +154,7 @@ function Router() {
 
       <Route path="/notifications">
         <DashboardLayout>
-          <HistoryPage />
+          <NotificationsPage />
         </DashboardLayout>
       </Route>
 
@@ -140,22 +165,19 @@ function Router() {
       </Route>
 
       <Route path="/404" component={NotFound} />
-      <Route component={NotFound} />
+      <Route>
+        <NotFound />
+      </Route>
     </Switch>
   );
 }
 
-function App() {
+export default function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="dark" switchable={true}>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+      <ThemeProvider defaultTheme="dark">
+        <Router />
       </ThemeProvider>
     </ErrorBoundary>
   );
 }
-
-export default App;

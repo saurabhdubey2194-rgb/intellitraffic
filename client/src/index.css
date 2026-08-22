@@ -43,114 +43,79 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* IntelliTraffic design system — light mode */
+/* FakeShield AI design system — dark futuristic theme */
 :root {
-  --radius: 0.85rem;
-  /* background #F8FAFC, text #0F172A */
-  --background: oklch(0.982 0.0123 255.6);
-  --foreground: oklch(0.080 0.1445 283.3);
-  /* card #FFFFFF */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.080 0.1445 283.3);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.080 0.1445 283.3);
-  /* primary #2563EB */
-  --primary: oklch(0.461 0.8005 292.8);
-  --primary-foreground: oklch(0.982 0.0123 255.6);
-  --secondary: oklch(0.357 0.1329 269.2);
-  --secondary-foreground: oklch(0.982 0.0123 255.6);
-  --muted: oklch(0.968 0.003 255);
-  --muted-foreground: oklch(0.357 0.1329 269.2);
-  --accent: oklch(0.945 0.025 255);
-  --accent-foreground: oklch(0.080 0.1445 283.3);
-  /* emergency #DC2626 (light) / #EF4444 */
-  --destructive: oklch(0.479 0.8175 35.0);
-  --destructive-foreground: oklch(0.982 0.0123 255.6);
-  /* border #CBD5E1, input border #CBD5E1 */
-  --border: oklch(0.849 0.0714 261.5);
-  --input: oklch(0.702 0.1246 269.2); /* border #475569 light */
-  /* Spec form field bg (light mode white) */
-  --field: oklch(0.984 0.003 247.9);
-  --ring: oklch(0.461 0.8005 292.8);
-  /* sidebar #0D1B2A */
-  --sidebar: oklch(0.093 0.1199 268.3);
-  --sidebar-foreground: oklch(0.849 0.0714 261.5);
-  --sidebar-primary: oklch(0.461 0.8005 292.8);
-  --sidebar-primary-foreground: oklch(0.982 0.0123 255.6);
-  --sidebar-accent: oklch(0.167 0.1744 274.0);
-  --sidebar-accent-foreground: oklch(0.982 0.0123 255.6);
-  --sidebar-border: oklch(0.357 0.1329 269.2);
-  --sidebar-ring: oklch(0.461 0.8005 292.8);
+  --radius: 0.75rem;
+  /* background #06060F, text #EEEEFF */
+  --background: oklch(0.045 0.025 270.0);
+  --foreground: oklch(0.96 0.01 270.0);
+  /* surface #0D0D1A */
+  --card: oklch(0.08 0.03 270.0);
+  --card-foreground: oklch(0.96 0.01 270.0);
+  --popover: oklch(0.08 0.03 270.0);
+  --popover-foreground: oklch(0.96 0.01 270.0);
+  /* primary (cyan) #00E5FF */
+  --primary: oklch(0.85 0.15 210.0);
+  --primary-foreground: oklch(0.05 0.02 270.0);
+  /* secondary (violet) #8B5CF6 */
+  --secondary: oklch(0.65 0.25 285.0);
+  --secondary-foreground: oklch(0.96 0.01 270.0);
+  --muted: oklch(0.15 0.05 270.0);
+  --muted-foreground: oklch(0.75 0.05 270.0);
+  --accent: oklch(0.25 0.15 285.0);
+  --accent-foreground: oklch(0.96 0.01 270.0);
+  /* risk colors */
+  --destructive: oklch(0.6 0.2 15.0);
+  --destructive-foreground: oklch(0.96 0.01 270.0);
+  /* border #1E1E40 */
+  --border: oklch(0.2 0.08 270.0);
+  --input: oklch(0.25 0.08 270.0);
+  --field: oklch(0.12 0.05 270.0);
+  --ring: oklch(0.85 0.15 210.0);
+  /* sidebar #0D0D1A */
+  --sidebar: oklch(0.08 0.03 270.0);
+  --sidebar-foreground: oklch(0.75 0.05 270.0);
+  --sidebar-primary: oklch(0.85 0.15 210.0);
+  --sidebar-primary-foreground: oklch(0.05 0.02 270.0);
+  --sidebar-accent: oklch(0.15 0.1 285.0);
+  --sidebar-accent-foreground: oklch(0.96 0.01 270.0);
+  --sidebar-border: oklch(0.2 0.08 270.0);
+  --sidebar-ring: oklch(0.85 0.15 210.0);
   /* charts */
-  --chart-1: oklch(0.461 0.8005 292.8);
-  --chart-2: oklch(0.702 0.7371 146.9);
-  --chart-3: oklch(0.722 0.7881 72.7);
-  --chart-4: oklch(0.550 0.7560 31.2);
-  --chart-5: oklch(0.722 0.4236 247.8);
-  /* IntelliTraffic semantic colors */
-  --it-emergency: oklch(0.550 0.7560 31.2);
-  --it-verified: oklch(0.588 0.6538 146.4);
-  --it-warning: oklch(0.722 0.7881 72.7);
-  --it-info: oklch(0.722 0.4236 247.8);
+  --chart-1: oklch(0.85 0.15 210.0);
+  --chart-2: oklch(0.65 0.25 285.0);
+  --chart-3: oklch(0.8 0.2 330.0);
+  --chart-4: oklch(0.9 0.15 90.0);
+  --chart-5: oklch(0.7 0.2 150.0);
 }
-/* IntelliTraffic design system — dark command-center mode */
+
 .dark {
-  /* main bg #07111F, section #0D1B2A, card #132238, elevated #182A42 */
-  --background: oklch(0.049 0.1050 273.9);
-  --foreground: oklch(0.982 0.0123 255.6);
-  --card: oklch(0.130 0.1631 276.2);
-  --card-foreground: oklch(0.982 0.0123 255.6);
-  --popover: oklch(0.130 0.1631 276.2);
-  --popover-foreground: oklch(0.982 0.0123 255.6);
-  /* primary #2563EB, hover #1D4ED8 */
-  --primary: oklch(0.461 0.8005 292.8);
-  --primary-foreground: oklch(0.982 0.0123 255.6);
-  --secondary: oklch(0.204 0.032 256.3); /* spec secondary button #1E293B */
-  --secondary-foreground: oklch(0.982 0.0123 255.6);
-  --muted: oklch(0.093 0.1199 268.3);
-  --muted-foreground: oklch(0.665 0.1261 266.7);
-  --accent: oklch(0.167 0.1744 274.0);
-  --accent-foreground: oklch(0.982 0.0123 255.6);
-  /* emergency #EF4444, hover #DC2626 */
-  --destructive: oklch(0.550 0.7560 31.2);
-  --destructive-foreground: oklch(0.982 0.0123 255.6);
-  /* borders #334155-ish */
-  --border: oklch(0.271 0.1380 270.5);
-  --input: oklch(0.357 0.1329 269.2);
-  /* Spec form field bg #0D1B2A (dark mode) */
-  --field: oklch(0.125 0.1246 269.2);
-  --ring: oklch(0.461 0.8005 292.8);
-  /* sidebar #0D1B2A, active #2563EB */
-  --sidebar: oklch(0.093 0.1199 268.3);
-  --sidebar-foreground: oklch(0.849 0.0714 261.5);
-  --sidebar-primary: oklch(0.461 0.8005 292.8);
-  --sidebar-primary-foreground: oklch(0.982 0.0123 255.6);
-  --sidebar-accent: oklch(0.167 0.1744 274.0);
-  --sidebar-accent-foreground: oklch(0.982 0.0123 255.6);
-  --sidebar-border: oklch(0.271 0.1380 270.5);
-  --sidebar-ring: oklch(0.461 0.8005 292.8);
-  /* charts */
-  --chart-1: oklch(0.461 0.8005 292.8);
-  --chart-2: oklch(0.702 0.7371 146.9);
-  --chart-3: oklch(0.722 0.7881 72.7);
-  --chart-4: oklch(0.550 0.7560 31.2);
-  --chart-5: oklch(0.722 0.4236 247.8);
-  /* IntelliTraffic semantic colors */
-  --it-emergency: oklch(0.550 0.7560 31.2);
-  --it-verified: oklch(0.702 0.7371 146.9);
-  --it-warning: oklch(0.722 0.7881 72.7);
-  --it-info: oklch(0.722 0.4236 247.8);
+  /* Dark is default, same tokens */
 }
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   html {
-    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-family: "Exo 2", "Segoe UI", system-ui, -apple-system, sans-serif;
+    scroll-behavior: smooth;
   }
   body {
     background-color: var(--background);
     color: var(--foreground);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 90% 50% at 10% 20%, rgba(139, 92, 246, 0.08), transparent 60%),
+      radial-gradient(ellipse 70% 60% at 90% 80%, rgba(0, 229, 255, 0.07), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(244, 114, 182, 0.05), transparent 70%);
+    pointer-events: none;
   }
   @media (prefers-reduced-motion: no-preference) {
     .fade-in-up {

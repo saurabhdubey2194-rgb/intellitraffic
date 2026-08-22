@@ -1,276 +1,302 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, File, Image as ImageIcon, Video, Music, X, AlertCircle, Loader2, CheckCircle2, ArrowRight, FileSearch, Globe } from "lucide-react";
+import { Upload, File, Image as ImageIcon, Video, Music, X, AlertCircle, Loader2, CheckCircle2, ArrowRight, FileSearch, Globe, Shield, Search, Zap, History, Lock, AlertTriangle, ShieldCheck, ShieldAlert } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
 
 export default function AnalyzePage() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const { data: profile } = trpc.auth.profile.useQuery();
+  const { data: recentJobs } = trpc.analysis.list.useQuery({ limit: 3 });
+  
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const selected = e.dataTransfer.files?.[0];
-    if (selected) {
-      validateAndSetFile(selected);
-    }
-  }, []);
-
-  const validateAndSetFile = (selected: File) => {
-    const allowedTypes = [
-      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-      'video/mp4', 'video/webm', 'video/quicktime',
-      'audio/mpeg', 'audio/wav', 'audio/ogg',
-      'text/plain', 'application/pdf', 'application/msword', 
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ];
-    
-    if (!allowedTypes.includes(selected.type) && 
-        !selected.type.startsWith('image/') && 
-        !selected.type.startsWith('video/') && 
-        !selected.type.startsWith('audio/') &&
-        !selected.name.endsWith('.url')) {
-      toast.error("Unsupported file type. Please upload images, videos, audio, or documents.");
-      return;
-    }
-
-    if (selected.size > 50 * 1024 * 1024) {
-      toast.error("File too large. Maximum size is 50MB.");
-      return;
-    }
-    setFile(selected);
-  };
-  
-  const uploadMutation = trpc.analysis.upload.useMutation({
+  const startAnalysis = trpc.analysis.upload.useMutation({
     onSuccess: (data) => {
-      toast.success("Upload complete. Analysis starting...");
+      toast.success("Media successfully uploaded to neural registry");
       navigate(`/analysis/${data.jobId}`);
     },
-    onError: (err: any) => {
+    onError: (err) => {
       setUploading(false);
-      toast.error(err.message || "Upload failed");
+      setProgress(0);
+      toast.error(err.message || "Forensic upload failed");
     }
   });
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      validateAndSetFile(selected);
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) validateAndSetFile(droppedFile);
+  }, []);
+
+  const validateAndSetFile = (f: File) => {
+    const validTypes = ['image/', 'video/', 'audio/', 'application/pdf', 'text/plain'];
+    const isValid = validTypes.some(t => f.type.startsWith(t));
+    
+    if (!isValid) {
+      return toast.error("Invalid media type. Please provide supported forensic evidence.");
     }
+    
+    if (f.size > 50 * 1024 * 1024) {
+      return toast.error("File size exceeds 50MB neural gateway limit.");
+    }
+    
+    setFile(f);
   };
 
-  const loadDemo = (type: string) => {
-    toast.info(`Loading ${type} demo sample...`);
-    // In a real demo, we'd load a specific file or trigger a specific jobId
-    setTimeout(() => {
-      navigate("/dashboard?demo=true");
-    }, 1000);
-  };
-
-  const removeFile = () => setFile(null);
-
-  const startAnalysis = async () => {
+  const handleUpload = async () => {
     if (!file) return;
     
     setUploading(true);
-    setProgress(10);
-    
+    let p = 0;
+    const interval = setInterval(() => {
+      p += Math.random() * 15;
+      if (p >= 95) {
+        clearInterval(interval);
+        setProgress(95);
+      } else {
+        setProgress(p);
+      }
+    }, 200);
+
     try {
-      // Read file as base64
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        setProgress(50);
-        
-        let type: "image" | "video" | "audio" | "text" | "url" | "document" = "image";
-        if (file.type.startsWith("video/")) type = "video";
-        else if (file.type.startsWith("audio/")) type = "audio";
-        else if (file.type.startsWith("text/")) type = "text";
-        else if (file.type.includes("pdf") || file.type.includes("word") || file.type.includes("officedocument")) type = "document";
-        else if (file.name.endsWith(".url")) type = "url";
-        
-        uploadMutation.mutate({
+        const base64 = reader.result as string;
+        const getForensicType = (mime: string): "text" | "image" | "video" | "audio" | "url" | "document" => {
+          if (mime.startsWith('video/')) return 'video';
+          if (mime.startsWith('audio/')) return 'audio';
+          if (mime.startsWith('image/')) return 'image';
+          if (mime === 'application/pdf') return 'document';
+          return 'text';
+        };
+
+        startAnalysis.mutate({
           fileName: file.name,
           mimeType: file.type,
           size: file.size,
-          base64,
-          type,
+          base64: base64.split(',')[1],
+          type: getForensicType(file.type)
         });
-        setProgress(90);
+        clearInterval(interval);
+        setProgress(100);
       };
       reader.readAsDataURL(file);
     } catch (err) {
+      clearInterval(interval);
       setUploading(false);
-      toast.error("Failed to process file");
+      setProgress(0);
+      toast.error("Failed to read evidence node.");
     }
   };
 
-  const getFileIcon = () => {
-    if (!file) return <Upload className="h-10 w-10" />;
-    if (file.type.startsWith("image/")) return <ImageIcon className="h-10 w-10 text-blue-500" />;
-    if (file.type.startsWith("video/")) return <Video className="h-10 w-10 text-purple-500" />;
-    if (file.type.startsWith("audio/")) return <Music className="h-10 w-10 text-amber-500" />;
-    if (file.type.includes("pdf") || file.type.includes("word")) return <FileSearch className="h-10 w-10 text-emerald-500" />;
-    if (file.name.endsWith(".url")) return <Globe className="h-10 w-10 text-sky-500" />;
-    return <File className="h-10 w-10 text-muted-foreground" />;
-  };
-
   return (
-    <div className="max-w-4xl mx-auto space-y-8 py-4">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Authenticity Analysis</h1>
-        <p className="text-muted-foreground max-w-lg mx-auto">
-          Upload media to detect manipulations, deepfakes, and generative AI artifacts.
-        </p>
+    <div className="space-y-12 pb-20 max-w-6xl mx-auto">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-white/5">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-[0.2em]">
+            <Zap className="h-3 w-3" />
+            Neural Gateway
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight font-rajdhani uppercase text-white">Forensic <span className="text-primary">Analysis</span></h1>
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Inject media nodes into the neural detection engine for deepfake verification.</p>
+        </div>
+        
+        {profile?.usage && (
+          <div className="flex flex-col items-end">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Neural Quota</span>
+              <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary bg-primary/5">
+                {profile.usage.remaining} Scans Left
+              </Badge>
+            </div>
+            <div className="w-32 h-1 bg-white/5 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-500" 
+                style={{ width: `${(profile.usage.used / profile.usage.limit) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      <Card 
-        className={`border-dashed border-2 transition-colors ${
-          isDragging ? 'border-blue-500 bg-blue-500/5' : 'border-border/60 bg-muted/30'
-        }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <CardContent className="pt-10 pb-10">
-          {!file ? (
-            <div className="flex flex-col items-center justify-center text-center space-y-4 min-h-[200px]">
-              <div className="h-20 w-20 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                <Upload className="h-10 w-10 text-blue-500" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-lg font-medium">Drag and drop media files</p>
-                <p className="text-sm text-muted-foreground">
-                  Support for Images, Video (MP4/WebM), and Audio (MP3/WAV) up to 50MB
-                </p>
-              </div>
-              <label className="cursor-pointer">
-                <Button variant="secondary" className="pointer-events-none">
-                  Select Files
-                </Button>
-                <input 
-                  type="file" 
-                  className="hidden" 
-                  onChange={onFileChange}
-                  accept="image/*,video/*,audio/*,text/plain"
-                />
-              </label>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 rounded-xl bg-background border border-border/40">
-                <div className="flex items-center gap-4">
-                  <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center">
-                    {getFileIcon()}
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-medium truncate max-w-[200px] md:max-w-md">{file.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(file.size / (1024 * 1024)).toFixed(2)} MB • {file.type}
-                    </p>
-                  </div>
-                </div>
-                {!uploading && (
-                  <Button variant="ghost" size="icon" onClick={removeFile}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-
-              {uploading ? (
-                <div className="space-y-4">
-                  <div className="flex justify-between text-sm font-medium">
-                    <span>Uploading & Pre-processing...</span>
-                    <span>{progress}%</span>
-                  </div>
-                  <Progress value={progress} className="h-2" />
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Securely encrypting and transmitting to analysis cluster
+      <div className="grid lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <Card className="border-white/5 bg-card/30 backdrop-blur-sm rounded-3xl overflow-hidden shadow-2xl">
+            <CardHeader className="p-8 border-b border-white/5">
+              <CardTitle className="font-rajdhani text-2xl uppercase tracking-tight text-white">Evidence Injection</CardTitle>
+              <CardDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Supported formats: Video, Audio, Images, PDF, Text (Max 50MB)</CardDescription>
+            </CardHeader>
+            <CardContent className="p-8">
+              {!file ? (
+                <div 
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={onDrop}
+                  className="group relative border-2 border-dashed border-white/5 rounded-[2.5rem] p-20 text-center hover:border-primary/30 hover:bg-primary/5 transition-all duration-500 cursor-pointer overflow-hidden"
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                >
+                  <div className="absolute inset-0 bg-primary/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <input 
+                    type="file" 
+                    id="file-upload" 
+                    className="hidden" 
+                    onChange={(e) => e.target.files?.[0] && validateAndSetFile(e.target.files[0])}
+                  />
+                  <div className="relative z-10 space-y-6">
+                    <div className="h-20 w-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto group-hover:scale-110 group-hover:bg-primary/10 group-hover:border-primary/20 transition-all duration-500">
+                      <Upload className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-lg font-bold font-rajdhani uppercase tracking-tight text-white">Drop Evidence Node Here</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">or click to browse local filesystem</p>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Button onClick={startAnalysis} className="flex-1 bg-blue-600 hover:bg-blue-500 h-12 text-base shadow-lg shadow-blue-600/20">
-                    Start Full Forensic Analysis
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" onClick={removeFile} className="h-12">
-                    Cancel
-                  </Button>
+                <div className="space-y-8">
+                  <div className="p-8 rounded-[2.5rem] border border-primary/20 bg-primary/5 flex items-center justify-between group relative overflow-hidden">
+                    <div className="absolute inset-0 bg-primary/5 blur-3xl opacity-50" />
+                    <div className="flex items-center gap-6 relative z-10">
+                      <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                        {file.type.startsWith('video') ? <Video className="h-8 w-8 text-primary" /> : 
+                         file.type.startsWith('audio') ? <Music className="h-8 w-8 text-primary" /> : 
+                         <ImageIcon className="h-8 w-8 text-primary" />}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-bold font-rajdhani text-xl tracking-tight uppercase text-white">{file.name}</p>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-widest">{(file.size / (1024 * 1024)).toFixed(2)} MB • {file.type.split('/')[1].toUpperCase()}</p>
+                      </div>
+                    </div>
+                    {!uploading && (
+                      <Button variant="ghost" size="icon" onClick={() => setFile(null)} className="h-12 w-12 rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-all relative z-10">
+                        <X className="h-5 w-5" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {uploading ? (
+                    <div className="space-y-6 p-8 rounded-3xl bg-white/5 border border-white/5">
+                      <div className="flex justify-between items-end">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] animate-pulse">Neural Upload in Progress</p>
+                          <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-widest">Syncing with forensic clusters...</p>
+                        </div>
+                        <span className="text-xl font-bold font-rajdhani text-white">{Math.round(progress)}%</span>
+                      </div>
+                      <Progress value={progress} className="h-2 bg-white/5" />
+                    </div>
+                  ) : (
+                    <Button 
+                      onClick={handleUpload} 
+                      className="w-full h-16 bg-primary hover:bg-primary/90 text-black text-xs font-bold uppercase tracking-[0.2em] rounded-2xl shadow-2xl shadow-primary/20 transition-all active:scale-[0.98]"
+                    >
+                      Initialize Neural Analysis
+                      <ArrowRight className="ml-3 h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Alert className="bg-blue-500/5 border-blue-500/20">
-          <AlertCircle className="h-4 w-4 text-blue-500" />
-          <AlertTitle>Privacy Notice</AlertTitle>
-          <AlertDescription className="text-xs text-muted-foreground">
-            All files are processed in an isolated environment and automatically deleted after 24 hours unless added to a case.
-          </AlertDescription>
-        </Alert>
-        <Alert className="bg-emerald-500/5 border-emerald-500/20">
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          <AlertTitle>Multi-Model Verification</AlertTitle>
-          <AlertDescription className="text-xs text-muted-foreground">
-            We use a combination of GAN artifact detection, facial inconsistency analysis, and frequency domain forensic checks.
-          </AlertDescription>
-        </Alert>
+          <Card className="border-white/5 bg-card/30 backdrop-blur-sm rounded-3xl overflow-hidden">
+            <CardHeader className="p-8 border-b border-white/5 flex flex-row items-center justify-between">
+              <div className="space-y-1">
+                <CardTitle className="font-rajdhani text-2xl uppercase tracking-tight text-white">Recent Archive</CardTitle>
+                <CardDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Your latest forensic scan nodes.</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/history")} className="text-[10px] font-bold text-primary uppercase tracking-widest hover:bg-primary/10">
+                View All History
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-white/5">
+                {recentJobs?.rows.map((job: any) => (
+                  <div 
+                    key={job.id} 
+                    onClick={() => navigate(`/analysis/${job.id}`)}
+                    className="p-6 flex items-center justify-between hover:bg-white/5 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-5">
+                      <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center group-hover:border-primary/20 transition-all">
+                        <FileSearch className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="font-bold text-[10px] uppercase tracking-widest text-white group-hover:text-primary transition-colors">{job.media?.originalName}</p>
+                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-tighter">{new Date(job.createdAt).toLocaleDateString()} • {job.media?.type}</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${
+                      job.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
+                      job.status === 'failed' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 
+                      'bg-primary/10 text-primary border-primary/20'
+                    }`}>
+                      {job.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-8">
+          <Card className="border-white/5 bg-card/30 backdrop-blur-sm rounded-3xl overflow-hidden relative group">
+            <div className="absolute inset-0 bg-primary/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CardHeader className="p-8 border-b border-white/5">
+              <CardTitle className="font-rajdhani text-xl uppercase tracking-tight text-white flex items-center gap-3">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                Detection Protocol
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 space-y-6">
+              <div className="space-y-4">
+                <ProtocolStep icon={<Globe className="h-4 w-4" />} title="Neural Mapping" desc="Media is decomposed into forensic primitives." />
+                <ProtocolStep icon={<Search className="h-4 w-4" />} title="Artifact Scanning" desc="Detection of GAN artifacts and neural jitters." />
+                <ProtocolStep icon={<Lock className="h-4 w-4" />} title="Hash Verification" desc="Integrity check against known manipulation patterns." />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/20 bg-primary/5 border rounded-3xl overflow-hidden relative group">
+            <div className="absolute inset-0 bg-primary/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CardHeader className="p-8 relative z-10">
+              <CardTitle className="font-rajdhani text-xl uppercase tracking-tight text-primary flex items-center gap-3">
+                <ShieldAlert className="h-5 w-5" />
+                Explainable AI
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 pt-0 relative z-10">
+              <p className="text-[10px] font-bold text-muted-foreground leading-relaxed uppercase tracking-widest opacity-80">
+                Our forensic reports provide detailed evidence maps, identifying exactly where and why our neural engine flagged a manipulation risk.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
+    </div>
+  );
+}
 
-      <Card className="bg-amber-500/5 border-amber-500/20">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2 text-amber-500">
-            <AlertCircle className="h-5 w-5" />
-            Demo Mode Samples
-          </CardTitle>
-          <CardDescription>
-            Test the forensic engine with pre-configured authentic and manipulated samples.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => loadDemo("Authentic Image")}>
-              <ImageIcon className="h-5 w-5" />
-              <span className="text-xs">Authentic Image</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col gap-2 border-amber-500/30 bg-amber-500/5" onClick={() => loadDemo("Deepfake Video")}>
-              <Video className="h-5 w-5 text-amber-500" />
-              <span className="text-xs text-amber-500">Deepfake Video</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col gap-2 border-amber-500/30 bg-amber-500/5" onClick={() => loadDemo("AI Voice")}>
-              <Music className="h-5 w-5 text-amber-500" />
-              <span className="text-xs text-amber-500">AI Voice</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => loadDemo("Legit Document")}>
-              <FileSearch className="h-5 w-5" />
-              <span className="text-xs">Legit Document</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+function ProtocolStep({ icon, title, desc }: { icon: any, title: string, desc: string }) {
+  return (
+    <div className="flex gap-4 group/step">
+      <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 group-hover/step:border-primary/30 transition-all">
+        <div className="text-muted-foreground group-hover/step:text-primary transition-colors">{icon}</div>
+      </div>
+      <div className="space-y-1">
+        <p className="text-[10px] font-black uppercase tracking-widest text-white group-hover/step:text-primary transition-colors">{title}</p>
+        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed opacity-60">{desc}</p>
+      </div>
     </div>
   );
 }

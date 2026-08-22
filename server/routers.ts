@@ -1,6 +1,6 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { TRPCError } from "@trpc/server";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   users,
@@ -15,6 +15,7 @@ import {
   abuseReports,
   notifications,
   apiUsage,
+  usageQuotas,
 } from "../drizzle/schema";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ENV } from "./_core/env";
@@ -136,18 +137,53 @@ const authRouter = router({
     }),
   forgotPassword: publicProcedure
     .input(z.object({ email: z.string().email() }))
-    .mutation(async () => {
+    .mutation(async ({ input }) => {
+      const db = await requireDb();
+      const [user] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
+      if (!user) return { success: true }; // Silent failure for security
+
+      // In a real app, send email with token. Here we just log it for demo.
+      console.log(`[Demo] Reset token for ${input.email}: demo-reset-token-${user.id}`);
       return { success: true };
     }),
   resetPassword: publicProcedure
     .input(z.object({ token: z.string(), password: z.string().min(8) }))
-    .mutation(async () => {
+    .mutation(async ({ input }) => {
+      const db = await requireDb();
+      // For demo, accept any token starting with 'demo-reset-token-'
+      if (!input.token.startsWith('demo-reset-token-')) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid or expired token" });
+      }
+      
+      const userId = parseInt(input.token.split('-').pop() || "0");
+      if (!userId) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid token structure" });
+
+      const bcrypt = await import("bcryptjs");
+      const hash = await bcrypt.hash(input.password, 10);
+      
+      await db.update(userPasswords)
+        .set({ passwordHash: hash })
+        .where(eq(userPasswords.userId, userId));
+        
       return { success: true };
     }),
   profile: protectedProcedure.query(async ({ ctx }) => {
-    const user = await q.listUsers({ search: ctx.user.email ?? undefined, limit: 1 });
-    if (user.total === 0) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
-    return user.rows[0];
+    const db = await requireDb();
+    const [user] = await db.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
+    if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+    
+    // Also get usage quota
+    const [quota] = await db.select().from(usageQuotas).where(eq(usageQuotas.userId, ctx.user.id)).limit(1);
+    
+    return {
+      ...user,
+      usage: quota ? {
+        used: quota.currentUsage,
+        limit: quota.monthlyLimit,
+        remaining: Math.max(0, quota.monthlyLimit - quota.currentUsage),
+        resetDate: quota.resetDate,
+      } : { used: 0, limit: 5, remaining: 5, resetDate: new Date() }
+    };
   }),
   updateProfile: protectedProcedure
     .input(z.object({
@@ -301,13 +337,72 @@ const analysisRouter = router({
     const userCases = await db.select().from(cases).where(eq(cases.userId, ctx.user.id));
     const activeCases = userCases.filter(c => c.status === "open").length;
 
+    // Get usage quota
+    const [usage] = await db.select().from(usageQuotas).where(eq(usageQuotas.userId, ctx.user.id)).limit(1);
+
     return {
       totalAnalyses: allJobs.length,
       detectedRisks: risks.length,
       authenticityRate: Math.round(avgScore),
       activeCases,
+      usage: usage ? {
+        used: usage.currentUsage,
+        limit: usage.monthlyLimit,
+        remaining: Math.max(0, usage.monthlyLimit - usage.currentUsage),
+      } : { used: 0, limit: 5, remaining: 5 }
     };
   }),
+
+  search: protectedProcedure
+    .input(z.object({ q: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const db = await requireDb();
+      const q = input.q.toLowerCase();
+      
+      // Search analyses
+      const jobs = await db.select({
+        id: analysisJobs.id,
+        status: analysisJobs.status,
+        name: mediaFiles.originalName,
+        type: mediaFiles.type,
+      })
+      .from(analysisJobs)
+      .innerJoin(mediaFiles, eq(analysisJobs.mediaId, mediaFiles.id))
+      .where(and(
+        eq(analysisJobs.userId, ctx.user.id),
+        like(mediaFiles.originalName, `%${q}%`)
+      ))
+      .limit(20);
+
+      // Search cases
+      const userCases = await db.select({
+        id: cases.id,
+        title: cases.title,
+        status: cases.status,
+      })
+      .from(cases)
+      .where(and(
+        eq(cases.userId, ctx.user.id),
+        like(cases.title, `%${q}%`)
+      ))
+      .limit(10);
+
+      // Add features and help search
+      const features = [
+        { id: "f1", name: "Neural Video Forensic", path: "/analyze?type=video" },
+        { id: "f2", name: "Voice Clone Analysis", path: "/analyze?type=audio" },
+        { id: "f3", name: "SMS Neural Verification", path: "/analyze?type=text" },
+        { id: "f4", name: "URL Forensic Scanner", path: "/analyze?type=url" },
+        { id: "f5", name: "Document Integrity Check", path: "/analyze?type=document" },
+        { id: "f6", name: "Threat Intelligence Index", path: "/threat-intelligence" },
+      ].filter(f => f.name.toLowerCase().includes(q));
+
+      return {
+        analyses: jobs.map(r => ({ id: r.id, title: r.name, type: r.type, path: `/analysis/${r.id}` })),
+        cases: userCases.map(c => ({ id: c.id, title: c.title, type: "case", path: `/cases/${c.id}` })),
+        features: features.map(f => ({ id: f.id, title: f.name, type: "feature", path: f.path })),
+      };
+    }),
 });
 
 /**
@@ -375,13 +470,35 @@ const caseRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       const db = await requireDb();
-      const [newCase] = await db.insert(cases).values({
+      const [res] = await db.insert(cases).values({
+        userId: ctx.user.id,
         title: input.title,
         description: input.description,
         status: "open",
-        userId: ctx.user.id,
       });
-      return { success: true, caseId: newCase.insertId };
+      return { id: res.insertId };
+    }),
+
+
+
+  share: protectedProcedure
+    .input(z.object({
+      resourceType: z.enum(["analysis", "case"]),
+      resourceId: z.number(),
+      email: z.string().email(),
+      accessLevel: z.enum(["view", "edit"]),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await requireDb();
+      // In a real app, we would create a sharing record and send an email
+      await db.insert(auditLogs).values({
+        userId: ctx.user.id,
+        action: `shared_${input.resourceType}`,
+        resourceType: input.resourceType,
+        resourceId: input.resourceId.toString(),
+        metadata: JSON.stringify({ sharedWith: input.email, accessLevel: input.accessLevel }),
+      });
+      return { success: true };
     }),
 
   stats: investigatorProcedure.query(async ({ ctx }) => {
@@ -402,6 +519,8 @@ const caseRouter = router({
     .query(async ({ input }) => {
       return q.getCaseDetails(input.caseId);
     }),
+
+
 
   addEvidence: investigatorProcedure
     .input(z.object({
@@ -487,6 +606,27 @@ const adminRouter = router({
     .query(async ({ input }) => {
       return q.listUsers(input);
     }),
+
+  listAllScans: adminProcedure
+    .input(z.object({ limit: z.number().optional(), offset: z.number().optional() }))
+    .query(async ({ input }) => {
+      const db = await requireDb();
+      const rows = await db.select({
+        job: analysisJobs,
+        media: mediaFiles,
+        user: users,
+        result: analysisResults,
+      })
+      .from(analysisJobs)
+      .innerJoin(mediaFiles, eq(analysisJobs.mediaId, mediaFiles.id))
+      .innerJoin(users, eq(analysisJobs.userId, users.id))
+      .leftJoin(analysisResults, eq(analysisJobs.id, analysisResults.jobId))
+      .orderBy(desc(analysisJobs.createdAt))
+      .limit(input.limit || 50)
+      .offset(input.offset || 0);
+      
+      return { rows, total: rows.length };
+    }),
   
   systemHealth: adminProcedure.query(async () => {
     return {
@@ -523,7 +663,18 @@ const settingsRouter = router({
       }).optional(),
       publicProfile: z.boolean().optional(),
     }))
-    .mutation(async () => {
+    .mutation(async ({ ctx, input }) => {
+      const db = await requireDb();
+      // In a real app, we would have a settings table. 
+      // For this project, we'll store it in the user's metadata or a dedicated table if available.
+      // Since schema doesn't have settings, we'll just log it and return success for demo.
+      await db.insert(auditLogs).values({
+        userId: ctx.user.id,
+        action: "updated_settings",
+        resourceType: "user",
+        resourceId: ctx.user.id.toString(),
+        metadata: JSON.stringify(input),
+      });
       return { success: true };
     }),
 });
@@ -570,11 +721,33 @@ export const appRouter = router({
       }),
     markAsRead: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         const db = await requireDb();
         await db.update(notifications)
           .set({ read: true })
-          .where(eq(notifications.id, input.id));
+          .where(and(
+            eq(notifications.id, input.id),
+            eq(notifications.userId, ctx.user.id)
+          ));
+        return { success: true };
+      }),
+    markAllAsRead: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        const db = await requireDb();
+        await db.update(notifications)
+          .set({ read: true })
+          .where(eq(notifications.userId, ctx.user.id));
+        return { success: true };
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await requireDb();
+        await db.delete(notifications)
+          .where(and(
+            eq(notifications.id, input.id),
+            eq(notifications.userId, ctx.user.id)
+          ));
         return { success: true };
       }),
   }),

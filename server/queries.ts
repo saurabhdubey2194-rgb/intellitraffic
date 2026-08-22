@@ -99,7 +99,16 @@ export async function listCases(userId: number, opts?: { status?: string; limit?
     conditions.push(eq(cases.status, opts.status as any));
     
   return db
-    .select()
+    .select({
+      id: cases.id,
+      userId: cases.userId,
+      title: cases.title,
+      description: cases.description,
+      status: cases.status,
+      createdAt: cases.createdAt,
+      updatedAt: cases.updatedAt,
+      evidenceCount: sql<number>`(SELECT count(*) FROM ${caseEvidence} WHERE ${caseEvidence.caseId} = ${cases.id})`.mapWith(Number)
+    })
     .from(cases)
     .where(and(...conditions))
     .orderBy(desc(cases.createdAt))
@@ -112,9 +121,20 @@ export async function getCaseDetails(caseId: number) {
   if (caseData.length === 0) return null;
   
   const evidence = await db
-    .select({ evidence: caseEvidence, media: mediaFiles })
+    .select({ 
+      evidence: caseEvidence, 
+      media: {
+        id: mediaFiles.id,
+        originalName: mediaFiles.originalName,
+        type: mediaFiles.type,
+        size: mediaFiles.size,
+        url: mediaFiles.url,
+        jobId: analysisJobs.id
+      }
+    })
     .from(caseEvidence)
     .innerJoin(mediaFiles, eq(caseEvidence.mediaId, mediaFiles.id))
+    .innerJoin(analysisJobs, eq(mediaFiles.id, analysisJobs.mediaId))
     .where(eq(caseEvidence.caseId, caseId));
     
   return { ...caseData[0], evidence };

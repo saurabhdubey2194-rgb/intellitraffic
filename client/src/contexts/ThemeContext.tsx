@@ -19,7 +19,7 @@ interface ThemeProviderProps {
 export function ThemeProvider({
   children,
   defaultTheme = "light",
-  switchable = false,
+  switchable = true,
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(() => {
     // Dev override: ?theme=light|dark (verification only, not persisted)

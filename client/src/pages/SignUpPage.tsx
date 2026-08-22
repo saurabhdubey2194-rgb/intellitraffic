@@ -1,6 +1,3 @@
-/**
- * Public sign-up page — FakeShield AI account creation.
- */
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,26 +12,30 @@ import {
   Loader2,
   ShieldCheck,
   Shield,
+  User,
+  Mail,
+  Lock,
+  Zap,
+  AlertTriangle
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-
-/** Friendly per-field validation, returns the first failing field or null. */
-function validate(form: FormState): { field?: keyof FormState; message: string } | null {
-  if (form.name.trim().length < 2) return { field: "name", message: "Full name must be at least 2 characters." };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return { field: "email", message: "Enter a valid email address." };
-  if (form.password.length < 8) return { field: "password", message: "Password must be at least 8 characters." };
-  if (form.password !== form.confirmPassword)
-    return { field: "confirmPassword", message: "Passwords do not match." };
-  return null;
-}
 
 interface FormState {
   name: string;
   email: string;
   password: string;
   confirmPassword: string;
+}
+
+function validate(form: FormState): { field?: keyof FormState; message: string } | null {
+  if (form.name.trim().length < 2) return { field: "name", message: "Identity name must be at least 2 characters." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return { field: "email", message: "Provide a valid communication index." };
+  if (form.password.length < 8) return { field: "password", message: "Signature must be at least 8 characters." };
+  if (form.password !== form.confirmPassword)
+    return { field: "confirmPassword", message: "Signatures do not match." };
+  return null;
 }
 
 export default function SignUpPage() {
@@ -58,17 +59,30 @@ export default function SignUpPage() {
 
   const signUp = trpc.auth.signUp.useMutation({
     onSuccess: () => {
-      toast.success("Account created successfully!");
+      toast.success("Identity initialized. Welcome to the Matrix.");
       navigate("/dashboard", { replace: true });
     },
     onError: (err: any) => {
       setError(err.message);
+      toast.error("Initialization failed.");
     },
   });
 
-  if (!loading && user) {
-    navigate("/dashboard", { replace: true });
-    return null;
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, loading, navigate]);
+
+  if (loading || user) {
+    return (
+      <div className="min-h-screen bg-[#07111F] flex items-center justify-center">
+        <div className="relative">
+          <div className="h-12 w-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+          <div className="absolute inset-0 blur-xl bg-primary/20 rounded-full animate-pulse" />
+        </div>
+      </div>
+    );
   }
 
   const set = (k: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,8 +100,8 @@ export default function SignUpPage() {
       return;
     }
     if (availability.data?.emailAvailable === false) {
-      setError("This email is already registered.");
-      setFieldErrors(prev => ({ ...prev, email: "Email already registered" }));
+      setError("This index is already registered in the Matrix.");
+      setFieldErrors(prev => ({ ...prev, email: "Index already registered" }));
       return;
     }
     signUp.mutate({
@@ -97,86 +111,103 @@ export default function SignUpPage() {
     });
   };
 
-  const inputCls = (k: keyof FormState) =>
-    `w-full ${fieldErrors[k] ? "border-red-400/70 focus-visible:ring-red-400/50" : ""}`;
-
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <header className="border-b border-border/60 bg-[#0b1526]">
-        <div className="container flex items-center justify-center gap-3 py-6">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-400/25">
-            <Shield className="h-6 w-6 text-blue-400" aria-hidden="true" />
+    <div className="min-h-screen bg-[#07111F] text-white flex flex-col relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden opacity-20">
+        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-primary/30 blur-[120px] rounded-full" />
+        <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-purple-600/30 blur-[120px] rounded-full" />
+      </div>
+
+      <header className="relative z-10 border-b border-white/5 bg-black/40 backdrop-blur-xl">
+        <div className="container flex items-center justify-center gap-4 py-8">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
+            <Shield className="h-7 w-7 text-black" aria-hidden="true" />
           </div>
           <div className="text-center">
-            <p className="text-xl font-extrabold tracking-tight">
-              FakeShield <span className="text-blue-400">AI</span>
+            <p className="text-2xl font-black tracking-tighter font-rajdhani uppercase">
+              FakeShield <span className="text-primary">AI</span>
             </p>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
-              Digital Authenticity. Powered by AI.
+            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground">
+              Digital Authenticity Matrix
             </p>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 container max-w-md py-10 px-4">
+      <main className="flex-1 container max-w-md py-16 px-4 relative z-10">
         <Button
           variant="ghost"
           size="sm"
-          className="mb-6 -ml-2 text-muted-foreground hover:text-foreground"
+          className="mb-8 -ml-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-white transition-colors"
           onClick={() => navigate("/signin")}
         >
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back to sign in
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Portal
         </Button>
 
-        <div className="text-center mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">Create your account</h1>
-          <p className="text-sm text-muted-foreground">
-            Sign up to start analyzing media for digital manipulation.
+        <div className="text-center mb-10 space-y-2">
+          <h1 className="text-3xl font-bold font-rajdhani uppercase tracking-tight">Initialize <span className="text-primary">Identity</span></h1>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Create a new neural signature to begin authenticity scans.
           </p>
         </div>
 
-        <Card className="rounded-2xl border p-6 md:p-8">
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <div className="space-y-1.5">
-              <Label htmlFor="signup-name" className="text-sm font-semibold">
-                Full Name <span className="text-red-400">*</span>
+        <Card className="rounded-3xl border-white/5 bg-black/40 backdrop-blur-xl p-8 shadow-2xl">
+          <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+            <div className="space-y-3">
+              <Label htmlFor="signup-name" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                Identity Name <span className="text-primary">*</span>
               </Label>
-              <Input id="signup-name" className={inputCls("name")} placeholder="e.g. John Doe" value={form.name} onChange={set("name")} aria-invalid={Boolean(fieldErrors.name)} />
-              {fieldErrors.name && <p className="text-xs text-red-400">{fieldErrors.name}</p>}
+              <div className="relative group">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input 
+                  id="signup-name" 
+                  className={`pl-12 h-14 bg-white/5 border-white/5 rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:border-primary/50 transition-all ${fieldErrors.name ? "border-red-500/50" : ""}`} 
+                  placeholder="e.g. Neo Anderson" 
+                  value={form.name} 
+                  onChange={set("name")} 
+                  aria-invalid={Boolean(fieldErrors.name)} 
+                />
+              </div>
+              {fieldErrors.name && <p className="text-[8px] font-black text-red-400 uppercase tracking-widest ml-1">{fieldErrors.name}</p>}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="signup-email" className="text-sm font-semibold">
-                Email <span className="text-red-400">*</span>
+            <div className="space-y-3">
+              <Label htmlFor="signup-email" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                Communication Index <span className="text-primary">*</span>
               </Label>
-              <Input
-                id="signup-email"
-                type="email"
-                autoComplete="email"
-                className={inputCls("email")}
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={set("email")}
-                aria-invalid={Boolean(fieldErrors.email)}
-              />
-              {fieldErrors.email && <p className="text-xs text-red-400">{fieldErrors.email}</p>}
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input
+                  id="signup-email"
+                  type="email"
+                  autoComplete="email"
+                  className={`pl-12 h-14 bg-white/5 border-white/5 rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:border-primary/50 transition-all ${fieldErrors.email ? "border-red-500/50" : ""}`}
+                  placeholder="you@matrix.com"
+                  value={form.email}
+                  onChange={set("email")}
+                  aria-invalid={Boolean(fieldErrors.email)}
+                />
+              </div>
+              {fieldErrors.email && <p className="text-[8px] font-black text-red-400 uppercase tracking-widest ml-1">{fieldErrors.email}</p>}
               {availability.data?.emailAvailable === false && (
-                <Badge variant="outline" className="border-red-400/50 text-red-400 text-[10px]">
-                  Email already registered
+                <Badge variant="outline" className="border-red-500/20 text-red-400 bg-red-500/5 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg">
+                  Index already registered
                 </Badge>
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="signup-password" className="text-sm font-semibold">
-                Password <span className="text-red-400">*</span>
+            <div className="space-y-3">
+              <Label htmlFor="signup-password" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                Neural Signature <span className="text-primary">*</span>
               </Label>
-              <div className="relative">
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input
                   id="signup-password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
-                  className={inputCls("password")}
+                  className={`pl-12 h-14 bg-white/5 border-white/5 rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:border-primary/50 transition-all ${fieldErrors.password ? "border-red-500/50" : ""}`}
                   placeholder="At least 8 characters"
                   value={form.password}
                   onChange={set("password")}
@@ -184,59 +215,64 @@ export default function SignUpPage() {
                 />
                 <button
                   type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
                   onClick={() => setShowPassword(s => !s)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {fieldErrors.password && <p className="text-xs text-red-400">{fieldErrors.password}</p>}
+              {fieldErrors.password && <p className="text-[8px] font-black text-red-400 uppercase tracking-widest ml-1">{fieldErrors.password}</p>}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="signup-confirm" className="text-sm font-semibold">
-                Confirm Password <span className="text-red-400">*</span>
+            <div className="space-y-3">
+              <Label htmlFor="signup-confirm" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                Confirm Signature <span className="text-primary">*</span>
               </Label>
-              <Input
-                id="signup-confirm"
-                type={showPassword ? "text" : "password"}
-                autoComplete="new-password"
-                className={inputCls("confirmPassword")}
-                placeholder="Re-enter your password"
-                value={form.confirmPassword}
-                onChange={set("confirmPassword")}
-                aria-invalid={Boolean(fieldErrors.confirmPassword)}
-              />
-              {fieldErrors.confirmPassword && <p className="text-xs text-red-400">{fieldErrors.confirmPassword}</p>}
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input
+                  id="signup-confirm"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  className={`pl-12 h-14 bg-white/5 border-white/5 rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:border-primary/50 transition-all ${fieldErrors.confirmPassword ? "border-red-500/50" : ""}`}
+                  placeholder="Re-enter signature"
+                  value={form.confirmPassword}
+                  onChange={set("confirmPassword")}
+                  aria-invalid={Boolean(fieldErrors.confirmPassword)}
+                />
+              </div>
+              {fieldErrors.confirmPassword && <p className="text-[8px] font-black text-red-400 uppercase tracking-widest ml-1">{fieldErrors.confirmPassword}</p>}
             </div>
 
             {error && !fieldErrors.password && !fieldErrors.name && !fieldErrors.email && !fieldErrors.confirmPassword && (
-              <div className="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-xs text-red-300" role="alert">
+              <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-red-400" role="alert">
+                <AlertTriangle className="h-3 w-3 inline mr-2" />
                 {error}
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={signUp.isPending}>
+            <Button type="submit" className="w-full h-14 bg-primary hover:bg-primary/90 text-black rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-[0.98]" disabled={signUp.isPending}>
               {signUp.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
-              {signUp.isPending ? "Creating account…" : "Create Account"}
+              {signUp.isPending ? "Initializing…" : "Initialize Identity"}
             </Button>
           </form>
 
-          <div className="mt-6 border-t border-border/60 pt-4 space-y-2 text-[11px] text-muted-foreground leading-relaxed">
-            <p>
-              Already have an account?{" "}
-              <button type="button" className="text-blue-400 underline-offset-2 hover:underline" onClick={() => navigate("/signin")}>
-                Sign in
+          <div className="mt-8 pt-6 border-t border-white/5 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Already verified?{" "}
+              <button type="button" className="text-primary hover:underline underline-offset-4" onClick={() => navigate("/signin")}>
+                Return to Portal
               </button>
             </p>
           </div>
         </Card>
       </main>
 
-      <footer className="border-t border-border/60 py-5 text-center text-[11px] text-muted-foreground">
-        <p>FakeShield AI — Digital Authenticity Platform</p>
+      <footer className="relative z-10 py-8 text-center text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground opacity-50">
+        <p>FakeShield AI — Neural Authenticity Node</p>
       </footer>
     </div>
   );
 }
+
+
