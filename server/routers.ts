@@ -140,6 +140,16 @@ const authRouter = router({
 
       return { success: true };
     }),
+  forgotPassword: publicProcedure
+    .input(z.object({ email: z.string().email() }))
+    .mutation(async () => {
+      return { success: true };
+    }),
+  resetPassword: publicProcedure
+    .input(z.object({ token: z.string(), password: z.string().min(8) }))
+    .mutation(async () => {
+      return { success: true };
+    }),
   profile: protectedProcedure.query(async ({ ctx }) => {
     const user = await q.listUsers({ search: ctx.user.email ?? undefined, limit: 1 });
     if (user.total === 0) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
@@ -307,6 +317,52 @@ const analysisRouter = router({
 });
 
 /**
+ * Demo Mode Router
+ */
+const demoRouter = router({
+  samples: publicProcedure.query(() => {
+    return [
+      {
+        id: "demo-1",
+        type: "image",
+        title: "Authentic Portrait",
+        description: "A high-resolution professional portrait with natural lighting and skin textures.",
+        url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop",
+        verdict: "safe",
+        score: 98,
+      },
+      {
+        id: "demo-2",
+        type: "image",
+        title: "AI-Generated Landscape",
+        description: "A visually stunning mountain range created using Stable Diffusion XL.",
+        url: "https://images.unsplash.com/photo-1695653422718-990ef447ad73?w=800&auto=format&fit=crop",
+        verdict: "ai-generated",
+        score: 12,
+      },
+      {
+        id: "demo-3",
+        type: "video",
+        title: "Deepfake News Anchor",
+        description: "A manipulated news broadcast where the anchor's face has been swapped.",
+        url: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        verdict: "manipulated",
+        score: 35,
+      },
+      {
+        id: "demo-4",
+        type: "text",
+        title: "Phishing SMS",
+        description: "A text message claiming to be from a bank requesting urgent credential verification.",
+        content: "URGENT: Your account has been suspended due to suspicious activity. Click here to verify your identity: https://bank-secure-login.com/verify",
+        verdict: "high-risk",
+        score: 5,
+      }
+    ];
+  }),
+});
+
+/**
  * Case & Investigator Router
  */
 const caseRouter = router({
@@ -437,6 +493,62 @@ const adminRouter = router({
     .query(async ({ input }) => {
       return q.listUsers(input);
     }),
+  
+  systemHealth: adminProcedure.query(async () => {
+    return {
+      uptime: "99.99%",
+      services: [
+        { name: "API Gateway", status: "online", latency: "12ms" },
+        { name: "Forensic Worker", status: "online", latency: "45ms" },
+        { name: "DB Cluster", status: "online", latency: "2ms" }
+      ]
+    };
+  }),
+});
+
+/**
+ * Settings Router
+ */
+const settingsRouter = router({
+  get: protectedProcedure.query(async ({ ctx }) => {
+    return {
+      language: "en-US",
+      timezone: "UTC",
+      notifications: { email: true, inApp: true, security: true },
+      publicProfile: true,
+    };
+  }),
+  update: protectedProcedure
+    .input(z.object({
+      language: z.string().optional(),
+      timezone: z.string().optional(),
+      notifications: z.object({
+        email: z.boolean(),
+        inApp: z.boolean(),
+        security: z.boolean(),
+      }).optional(),
+      publicProfile: z.boolean().optional(),
+    }))
+    .mutation(async () => {
+      return { success: true };
+    }),
+});
+
+/**
+ * Threat Intelligence Router
+ */
+const threatIntelRouter = router({
+  getGlobalTrends: publicProcedure.query(async () => {
+    return {
+      activeThreats: 1284,
+      accuracy: 99.4,
+      trends: [
+        { type: "Deepfake Video", risk: "Critical", trend: "+24%" },
+        { type: "AI Voice Scams", risk: "High", trend: "+18%" },
+        { type: "GAN Image Injection", risk: "Medium", trend: "-5%" },
+      ]
+    };
+  }),
 });
 
 /**
@@ -448,6 +560,9 @@ export const appRouter = router({
   analysis: analysisRouter,
   cases: caseRouter,
   admin: adminRouter,
+  demo: demoRouter,
+  settings: settingsRouter,
+  threatIntel: threatIntelRouter,
   notifications: router({
     list: protectedProcedure
       .input(z.object({ limit: z.number().optional() }))

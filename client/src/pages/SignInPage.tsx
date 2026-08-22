@@ -146,6 +146,16 @@ export default function SignInPage() {
             </Button>
           </form>
 
+          <div className="mt-4 text-center">
+            <button 
+              type="button" 
+              className="text-xs text-muted-foreground hover:text-blue-400 transition-colors"
+              onClick={() => navigate("/forgot-password")}
+            >
+              Forgot your password?
+            </button>
+          </div>
+
           <div className="mt-6 border-t border-border/60 pt-4 text-[11px] text-muted-foreground leading-relaxed">
             <p>
               Don't have an account?{" "}

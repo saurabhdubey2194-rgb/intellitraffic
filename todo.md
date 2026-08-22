@@ -48,3 +48,13 @@
 - [x] Admin Command Center: Full user management, live API usage monitoring, failed job review, and system health metrics
 - [x] Database Expansion: Full schema for Evidence, ThreatIndicators, APIUsage, Notifications, and AuditLogs implemented and verified
 - [x] API Usage Tracking: Middleware-based tracking of all protected API calls for security auditing
+
+## Round 7: Final Compliance & Demo Readiness
+- [x] Demo Mode: Clearly labeled Demo Mode with pre-configured authentic/fake samples and navigation flows
+- [x] Auth Extensions: Functional Forgot Password and Reset Password UI wired to tRPC mutations
+- [x] Threat Intelligence: Live "/threat-intelligence" page backed by global trends router
+- [x] Admin Sub-pages: Full refactor into dedicated sub-pages with live data and system health monitoring
+- [x] Settings: Functional "/settings" for user preferences with tRPC persistence
+- [x] API Usage Tracking: Middleware-based auditing of all protected API calls
+- [x] Accessibility Audit: Semantic HTML and ARIA compliance verified across core routes
+- [x] Final Acceptance Verification: All 34 points of the Full-Stack Acceptance Criteria implemented and verified

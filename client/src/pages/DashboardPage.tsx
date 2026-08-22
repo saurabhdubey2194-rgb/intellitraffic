@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, FileSearch, History, Upload, AlertTriangle, CheckCircle2, Clock, ArrowUpRight, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Shield, FileSearch, History, Upload, AlertTriangle, CheckCircle2, Clock, ArrowUpRight, Plus, Zap } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAnalysisEvents } from "@/hooks/useAnalysisEvents";
 import { useEffect } from "react";
+import { toast } from "sonner";
 	
 export default function DashboardPage() {
   const [, navigate] = useLocation();
@@ -21,6 +23,8 @@ export default function DashboardPage() {
     }
   }, [lastEvent, utils]);
 
+  const { data: demoSamples } = trpc.demo.samples.useQuery();
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -28,11 +32,63 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
           <p className="text-muted-foreground">Monitor your digital authenticity analysis and active cases.</p>
         </div>
-        <Button onClick={() => navigate("/analyze")} className="bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20">
-          <Plus className="mr-2 h-4 w-4" />
-          New Analysis
-        </Button>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20 px-3 py-1">
+            <Shield className="mr-2 h-3 w-3" />
+            Demo Mode Active
+          </Badge>
+          <Button onClick={() => navigate("/analyze")} className="bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20">
+            <Plus className="mr-2 h-4 w-4" />
+            New Analysis
+          </Button>
+        </div>
       </div>
+
+      {/* Demo Samples Section */}
+      <Card className="border-blue-500/20 bg-blue-500/5 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Zap className="h-5 w-5 text-blue-500" />
+            Quick Start: Demo Samples
+          </CardTitle>
+          <CardDescription>Explore FakeShield AI's detection capabilities with these pre-configured samples.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {demoSamples?.map((sample: any) => (
+              <Card 
+                key={sample.id} 
+                className="bg-black/20 border-border/40 group hover:border-blue-500/50 transition-colors cursor-pointer" 
+                onClick={() => {
+                  toast.info(`Loading demo sample: ${sample.title}`);
+                  // In a real app, this would pre-fill AnalyzePage or navigate to a specific result
+                  setTimeout(() => navigate("/analyze"), 800);
+                }}
+              >
+                <CardContent className="p-4">
+                  <div className="aspect-video rounded-lg bg-muted mb-3 overflow-hidden relative">
+                    {sample.url ? (
+                      <img src={sample.url} alt={sample.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs p-4 text-center italic">
+                        "{sample.content?.substring(0, 50)}..."
+                      </div>
+                    )}
+                    <Badge className={`absolute top-2 right-2 ${
+                      sample.verdict === 'safe' ? 'bg-emerald-500' : 
+                      sample.verdict === 'ai-generated' ? 'bg-blue-500' : 'bg-red-500'
+                    }`}>
+                      {sample.verdict}
+                    </Badge>
+                  </div>
+                  <h4 className="font-semibold text-sm">{sample.title}</h4>
+                  <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{sample.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

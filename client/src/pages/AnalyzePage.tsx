@@ -77,6 +77,14 @@ export default function AnalyzePage() {
     }
   };
 
+  const loadDemo = (type: string) => {
+    toast.info(`Loading ${type} demo sample...`);
+    // In a real demo, we'd load a specific file or trigger a specific jobId
+    setTimeout(() => {
+      navigate("/dashboard?demo=true");
+    }, 1000);
+  };
+
   const removeFile = () => setFile(null);
 
   const startAnalysis = async () => {
@@ -231,6 +239,38 @@ export default function AnalyzePage() {
           </AlertDescription>
         </Alert>
       </div>
+
+      <Card className="bg-amber-500/5 border-amber-500/20">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2 text-amber-500">
+            <AlertCircle className="h-5 w-5" />
+            Demo Mode Samples
+          </CardTitle>
+          <CardDescription>
+            Test the forensic engine with pre-configured authentic and manipulated samples.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => loadDemo("Authentic Image")}>
+              <ImageIcon className="h-5 w-5" />
+              <span className="text-xs">Authentic Image</span>
+            </Button>
+            <Button variant="outline" className="h-20 flex flex-col gap-2 border-amber-500/30 bg-amber-500/5" onClick={() => loadDemo("Deepfake Video")}>
+              <Video className="h-5 w-5 text-amber-500" />
+              <span className="text-xs text-amber-500">Deepfake Video</span>
+            </Button>
+            <Button variant="outline" className="h-20 flex flex-col gap-2 border-amber-500/30 bg-amber-500/5" onClick={() => loadDemo("AI Voice")}>
+              <Music className="h-5 w-5 text-amber-500" />
+              <span className="text-xs text-amber-500">AI Voice</span>
+            </Button>
+            <Button variant="outline" className="h-20 flex flex-col gap-2" onClick={() => loadDemo("Legit Document")}>
+              <FileSearch className="h-5 w-5" />
+              <span className="text-xs">Legit Document</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

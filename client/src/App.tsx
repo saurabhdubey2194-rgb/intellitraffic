@@ -16,6 +16,15 @@ import AdminDashboardPage from "./pages/AdminDashboardPage";
 import InvestigatorDashboardPage from "./pages/InvestigatorDashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import CaseDetailPage from "./pages/CaseDetailPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
+import AdminScansPage from "./pages/AdminScansPage";
+import AdminModelsPage from "./pages/AdminModelsPage";
+import AdminLogsPage from "./pages/AdminLogsPage";
+import AdminSystemPage from "./pages/AdminSystemPage";
+import ThreatIntelligencePage from "./pages/ThreatIntelligencePage";
+import SettingsPage from "./pages/SettingsPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 function Router() {
   return (
@@ -23,6 +32,8 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/signin" component={SignInPage} />
       <Route path="/signup" component={SignUpPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       
       {/* Workspace routes */}
       <Route path="/dashboard">
@@ -71,6 +82,60 @@ function Router() {
       <Route path="/admin">
         <DashboardLayout>
           <AdminDashboardPage />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/admin/users">
+        <DashboardLayout>
+          <AdminUsersPage />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/admin/scans">
+        <DashboardLayout>
+          <AdminScansPage />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/admin/models">
+        <DashboardLayout>
+          <AdminModelsPage />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/admin/logs">
+        <DashboardLayout>
+          <AdminLogsPage />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/admin/system">
+        <DashboardLayout>
+          <AdminSystemPage />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/threat-intelligence">
+        <DashboardLayout>
+          <ThreatIntelligencePage />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/settings">
+        <DashboardLayout>
+          <SettingsPage />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/notifications">
+        <DashboardLayout>
+          <HistoryPage />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/reports">
+        <DashboardLayout>
+          <HistoryPage />
         </DashboardLayout>
       </Route>
 
